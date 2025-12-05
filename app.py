@@ -79,7 +79,7 @@ Current State Assessment: High-level summary of the process maturity.
 Key Conclusion: The primary opportunity for improvement.
 
 2. Maturity Assessment
-Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader.
+Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader [Image of CMMI Maturity Levels].
 Company Assessment: Assign a specific level (1-5) to The Company.
 Justification: Justify the assigned level using specific evidence from the answers (e.g., "Level 2 because processes are repeatable but rely on specific individuals...").
 Data Readiness Index: Assess the quality and structure of data (e.g., structured databases vs. unstructured PDFs/Excel).
@@ -138,4 +138,35 @@ with st.sidebar:
 
 # --- 5. Main Content ---
 st.title("📊 AI Business Process Audit")
-st
+st.markdown("**Get a professional audit of your business processes in 60 seconds.**")
+st.divider()
+
+col1, col2 = st.columns(2)
+with col1:
+    st.subheader("User Details")
+    user_email = st.text_input("Your Email", placeholder="name@company.com")
+with col2:
+    st.subheader("Step 2: Upload Data")
+    uploaded_file = st.file_uploader("Upload filled questionnaire", type=["xlsx", "xls", "pdf"])
+
+st.markdown("### 🔒 Terms & Conditions")
+agreement = st.checkbox("I agree to the processing of personal data.")
+
+# API Key Handling
+if "GOOGLE_API_KEY" in st.secrets:
+    api_key = st.secrets["GOOGLE_API_KEY"]
+else:
+    api_key = st.text_input("Enter Google Gemini API Key", type="password")
+
+# --- 6. Execution Logic ---
+if st.button("🚀 Generate Audit Report"):
+    if not agreement or not uploaded_file or not api_key:
+        st.error("Please ensure you accepted terms, uploaded a file, and have an API key.")
+    else:
+        genai.configure(api_key=api_key)
+        
+        with st.spinner("🤖 AI is analyzing..."):
+            try:
+                # 1. Read File
+                file_ext = uploaded_file.name.split(".")[-1].lower()
+                if file_ext in ["xlsx", "xls"]:
