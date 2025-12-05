@@ -4,6 +4,7 @@ import PyPDF2
 import pandas as pd
 import datetime
 import io
+from fpdf import FPDF
 
 # --- 1. Page Config (Must be first) ---
 st.set_page_config(
@@ -109,7 +110,7 @@ st.markdown("""
         transform: scale(1.02);
     }
     
-    /* Стилизация File Uploader (насколько возможно) */
+    /* Стилизация File Uploader */
     .stFileUploader {
         padding-top: 0px;
     }
@@ -118,6 +119,21 @@ st.markdown("""
     .block-container {
         padding-top: 3rem;
         padding-bottom: 5rem;
+    }
+
+    /* Стили для нижнего текста */
+    .whats-next {
+        text-align: center;
+        margin-top: 60px;
+        font-family: 'Inter', sans-serif;
+        color: #666;
+        font-size: 16px;
+    }
+    .whats-next a {
+        color: #000;
+        text-decoration: none;
+        font-weight: 600;
+        border-bottom: 1px solid #000;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -145,11 +161,42 @@ def extract_text_from_excel(file):
     except Exception as e:
         return f"Error reading Excel: {e}"
 
+# PDF Generation Class
+class PDFReport(FPDF):
+    def header(self):
+        # Logo: Пытаемся вставить logo.png, который лежит в корне репозитория
+        try:
+            self.image('logo.png', 10, 8, 15) 
+            self.set_xy(30, 12)
+        except:
+            self.set_xy(10, 12)
+            
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 0, 'AiAiAi Automation Audit', 0, 0, 'L')
+        self.ln(20)
+
+    def footer(self):
+        self.set_y(-20)
+        self.set_font('Arial', 'I', 9)
+        self.cell(0, 10, 'Questions? Contact elena.hmelovs@gmail.com', 0, 0, 'C')
+
+def create_pdf(text_content):
+    pdf = PDFReport()
+    pdf.add_page()
+    pdf.set_font("Arial", size=11)
+    
+    # Очистка текста для PDF (latin-1 ограничение)
+    # Если текст на русском, в PDF могут быть знаки вопроса, т.к. нет шрифта .ttf
+    # Но файл Markdown скачается корректно.
+    clean_text = text_content.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 6, clean_text)
+    
+    return pdf.output(dest='S').encode('latin-1')
+
 current_date = datetime.date.today().strftime("%B %d, %Y")
 
 # --- 4. System Prompt ---
 SYSTEM_PROMPT = f"""
-
 You are a Senior Business Process Analyst and Intelligent Automation Expert. Your task is to analyze a completed questionnaire provided by a client and generate a formal Audit Report focused on automation potential.
 
 Input Data Context:
@@ -162,8 +209,11 @@ Example: If the input mentions "Trello is used for tasks," do NOT assume "passwo
 If data is missing for a specific section, state: "Insufficient data provided."
 
 Formal Tone: Use professional Business Language.
-Avoid informal language, slang, idioms (e.g., "heroism", "mess", "on the fly"), or emotive punctuation (!).
-Use professional terms: instead of "chaos," use "lack of standardization"; instead of "heroism," use "high dependency on key personnel."
+Avoid informal language, slang, idioms.
+Use professional terms: instead of "chaos," use "lack of standardization".
+
+TERMINOLOGY RULE: 
+Use professional, native terminology. Never use direct translations like 'Аудитный'. Use 'Аудиторский отчет' or 'Отчет по аудиту' instead
 
 Language:
 You must detect the language used in the ANSWERS.
@@ -234,15 +284,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -- C. The "3 Steps" Flow --
-# Создаем сложную сетку колонок: [Шаг 1] [Стрелка] [Шаг 2] [Стрелка] [Шаг 3]
-# Используем соотношение ширины, чтобы это выглядело красиво
 col_step1, col_arr1, col_step2, col_arr2, col_step3 = st.columns([3, 0.5, 3, 0.5, 3])
 
 # --- STEP 1: Fill the form ---
 with col_step1:
     st.markdown('<div class="step-oval">Fill the form</div>', unsafe_allow_html=True)
     
-    # Кнопка скачивания, стилизованная под ссылку с треугольником
     try:
         with open("Template.xlsx", "rb") as file:
             st.download_button(
@@ -263,9 +310,14 @@ with col_arr1:
 with col_step2:
     st.markdown('<div class="step-oval">Agree to rules</div>', unsafe_allow_html=True)
     
-    # Чекбокс
-    st.markdown("<br>", unsafe_allow_html=True) # Небольшой отступ
-    agreement = st.checkbox("I agree to Terms and Conditions")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # -----------------------------------------------------------
+    # ВСТАВЬТЕ СЮДА ВАШУ ССЫЛКУ "COPY PERMLINK" МЕЖДУ КАВЫЧКАМИ
+    terms_link = "https://github.com/ehmlvs/audit-website/blob/767a7a34e368c172995134ed77c247f8090b472d/terms.pdf"
+    # -----------------------------------------------------------
+    
+    agreement = st.checkbox(f"I agree to [Terms and Conditions]({terms_link})")
 
 # --- ARROW 2 ---
 with col_arr2:
@@ -275,7 +327,6 @@ with col_arr2:
 with col_step3:
     st.markdown('<div class="step-oval">Upload answers</div>', unsafe_allow_html=True)
     
-    # Загрузчик файлов
     uploaded_file = st.file_uploader("", type=["xlsx", "xls", "pdf"], label_visibility="collapsed")
 
 
@@ -283,18 +334,15 @@ with col_step3:
 st.markdown("<br><br>", unsafe_allow_html=True)
 
 # -- E. Main CTA Button & Logic --
-# Чтобы центрировать кнопку, используем колонки
-_, col_btn, _ = st.columns([1, 2, 1])
+# Центрирование кнопки: [1, 0.8, 1] - средняя колонка узкая, кнопка будет по центру
+col_left, col_btn, col_right = st.columns([1, 0.8, 1])
 
 with col_btn:
-    # API Key Logic (Hidden)
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
     else:
-        # Fallback for local testing
         api_key = st.text_input("API Key", type="password")
 
-    # THE BUTTON
     start_audit = st.button("Get My AI-First Plan")
 
 
@@ -307,7 +355,6 @@ if start_audit:
     elif not api_key:
         st.error("System Error: API Key missing.")
     else:
-        # Show spinner while working
         with st.spinner("Analyzing your business DNA..."):
             try:
                 genai.configure(api_key=api_key)
@@ -322,7 +369,7 @@ if start_audit:
                 if not raw_text or len(raw_text) < 10:
                     st.error("File seems empty.")
                 else:
-                    # 2. Analyze (Using 2.0 Flash as preferred)
+                    # 2. Analyze
                     model = genai.GenerativeModel(
                         model_name="gemini-2.0-flash", 
                         system_instruction=SYSTEM_PROMPT
@@ -335,12 +382,37 @@ if start_audit:
                     st.markdown("---")
                     st.markdown(response.text)
                     
-                    st.download_button(
-                        label="📥 Download Full Report",
-                        data=response.text,
-                        file_name=f"AI_First_Plan_{datetime.date.today()}.md",
-                        mime="text/markdown"
-                    )
+                    # 4. Buttons (MD and PDF)
+                    col_md, col_pdf = st.columns(2)
+                    
+                    with col_md:
+                        st.download_button(
+                            label="📥 Download Markdown",
+                            data=response.text,
+                            file_name=f"AI_First_Plan_{datetime.date.today()}.md",
+                            mime="text/markdown"
+                        )
+                    
+                    with col_pdf:
+                        try:
+                            pdf_bytes = create_pdf(response.text)
+                            st.download_button(
+                                label="📄 Download PDF Report",
+                                data=pdf_bytes,
+                                file_name=f"AI_First_Plan_{datetime.date.today()}.pdf",
+                                mime="application/pdf"
+                            )
+                        except Exception as pdf_err:
+                            st.warning(f"PDF generation issue: {pdf_err}")
+
                     
             except Exception as e:
                 st.error(f"Error: {e}")
+
+# --- 7. What's Next Section (Text Only) ---
+st.markdown("""
+<div class="whats-next">
+    What's next? <br>
+    <a href="mailto:elena.hmelovs@gmail.com?subject=Discussion%20about%20AI%20Audit">elena.hmelovs@gmail.com</a>
+</div>
+""", unsafe_allow_html=True)
