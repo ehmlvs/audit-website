@@ -79,7 +79,7 @@ Current State Assessment: High-level summary of the process maturity.
 Key Conclusion: The primary opportunity for improvement.
 
 2. Maturity Assessment
-Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader [Image of CMMI Maturity Levels].
+Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader.
 Company Assessment: Assign a specific level (1-5) to The Company.
 Justification: Justify the assigned level using specific evidence from the answers (e.g., "Level 2 because processes are repeatable but rely on specific individuals...").
 Data Readiness Index: Assess the quality and structure of data (e.g., structured databases vs. unstructured PDFs/Excel).
@@ -169,4 +169,36 @@ if st.button("🚀 Generate Audit Report"):
             try:
                 # 1. Read File
                 file_ext = uploaded_file.name.split(".")[-1].lower()
+                
+                # --- THIS WAS THE PROBLEM SECTION (NOW FIXED) ---
                 if file_ext in ["xlsx", "xls"]:
+                    raw_text = extract_text_from_excel(uploaded_file)
+                else:
+                    raw_text = extract_text_from_pdf(uploaded_file)
+                # -----------------------------------------------
+
+                if not raw_text or len(raw_text) < 20:
+                    st.error("File is empty or unreadable.")
+                else:
+                    # 2. Setup Model 
+                    model = genai.GenerativeModel(
+                        model_name=selected_model_name, 
+                        system_instruction=SYSTEM_PROMPT
+                    )
+                    
+                    # 3. Generate
+                    response = model.generate_content(f"Here is the filled questionnaire data:\n\n{raw_text}")
+                    
+                    st.success("Analysis Complete!")
+                    st.markdown("---")
+                    st.markdown(response.text)
+                    
+                    st.download_button(
+                        label="📥 Download Report",
+                        data=response.text,
+                        file_name=f"Audit_Report_{datetime.date.today()}.md",
+                        mime="text/markdown"
+                    )
+                    
+            except Exception as e:
+                st.error(f"❌ An error occurred: {e}")
