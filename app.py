@@ -5,14 +5,9 @@ import pandas as pd
 import datetime
 import io
 
-# --- 1. Page Config & Styling ---
-st.set_page_config(
-    page_title="AI Business Process Audit", 
-    page_icon="📊", 
-    layout="wide"
-)
+# --- 1. Page Config ---
+st.set_page_config(page_title="AI Business Process Audit", page_icon="📊", layout="wide")
 
-# Hide standard Streamlit branding for a cleaner look
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -22,8 +17,7 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# --- 2. Helper Functions (File Processing) ---
-
+# --- 2. Helper Functions ---
 def extract_text_from_pdf(file):
     try:
         pdf_reader = PyPDF2.PdfReader(file)
@@ -36,21 +30,18 @@ def extract_text_from_pdf(file):
 
 def extract_text_from_excel(file):
     try:
-        # Read all sheets
         df_dict = pd.read_excel(file, sheet_name=None)
         text = ""
         for sheet_name, df in df_dict.items():
             text += f"\n--- SHEET: {sheet_name} ---\n"
-            # Convert dataframe to string format for AI
             text += df.to_string()
         return text
     except Exception as e:
         return f"Error reading Excel: {e}"
 
-# Get current date for the report
 current_date = datetime.date.today().strftime("%B %d, %Y")
 
-# --- 3. System Prompt (YOUR EXACT PROMPT) ---
+# --- 3. System Prompt ---
 SYSTEM_PROMPT = f"""
 You are a Senior Business Process Analyst and Intelligent Automation Expert. Your task is to analyze a completed questionnaire provided by a client and generate a formal Audit Report focused on automation potential.
 
@@ -117,12 +108,10 @@ Constraint: Ensure every step in the roadmap corresponds to a finding in Section
 Use Markdown formatting.
 """
 
-# --- 4. Sidebar (Template Download & Settings) ---
+# --- 4. Sidebar ---
 with st.sidebar:
     st.header("📂 Step 1: Get the Template")
-    st.write("Please download and fill out the questionnaire to get started.")
-    
-    # Try to provide the download button for Template.xlsx
+    st.write("Please download and fill out the questionnaire.")
     try:
         with open("Template.xlsx", "rb") as file:
             st.download_button(
@@ -132,91 +121,91 @@ with st.sidebar:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
     except FileNotFoundError:
-        st.error("⚠️ 'Template.xlsx' not found in the repository. Please upload it to GitHub.")
+        st.error("⚠️ 'Template.xlsx' not found. Please upload it to GitHub.")
 
     st.divider()
+    
+    # --- MODEL SELECTOR (NEW) ---
+    # Позволяет выбрать модель вручную, если дефолтная не работает
+    model_options = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-1.5-flash-latest", "gemini-1.5-pro"]
+    selected_model_name = st.selectbox("AI Model Version (Advanced)", model_options, index=0)
+    
     st.write("**Support:** support@aiaiaiautomation.com")
 
 # --- 5. Main Content ---
 st.title("📊 AI Business Process Audit")
-st.markdown("""
-**Get a professional audit of your business processes in 60 seconds.** Upload your completed questionnaire, and our AI Analyst will identify bottlenecks, calculate automation potential, and build a roadmap for you.
-""")
-
+st.markdown("**Get a professional audit of your business processes in 60 seconds.**")
 st.divider()
 
-# -- Input Section --
 col1, col2 = st.columns(2)
-
 with col1:
     st.subheader("User Details")
-    user_email = st.text_input("Your Email (to receive the report)", placeholder="name@company.com")
-
+    user_email = st.text_input("Your Email", placeholder="name@company.com")
 with col2:
     st.subheader("Step 2: Upload Data")
     uploaded_file = st.file_uploader("Upload filled questionnaire", type=["xlsx", "xls", "pdf"])
 
-# -- Legal Section --
 st.markdown("### 🔒 Terms & Conditions")
-policy_text = """
-I agree to the processing of personal data and accept the 
-[Privacy Policy](https://example.com/privacy) and [Terms of Service](https://example.com/terms).
-"""
-agreement = st.checkbox(policy_text)
+agreement = st.checkbox("I agree to the processing of personal data.")
 
-# -- API Key Logic (Hidden in Production) --
+# API Key Handling
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
-    # Fallback for testing if secrets are not set
-    api_key = st.text_input("Enter Google Gemini API Key", type="password", help="Required for analysis")
+    api_key = st.text_input("Enter Google Gemini API Key", type="password")
 
 # --- 6. Execution Logic ---
 if st.button("🚀 Generate Audit Report"):
-    # Validation
-    if not agreement:
-        st.error("Please accept the Terms & Conditions to proceed.")
-    elif not uploaded_file:
-        st.error("Please upload a file.")
-    elif not api_key:
-        st.warning("API Key is missing. Please configure it in Streamlit Secrets.")
+    if not agreement or not uploaded_file or not api_key:
+        st.error("Please ensure you accepted terms, uploaded a file, and have an API key.")
     else:
-        # Start Analysis
         genai.configure(api_key=api_key)
         
-        with st.spinner("🤖 AI is analyzing your processes... Please wait (approx. 30-60s)"):
+        with st.spinner("🤖 AI is analyzing..."):
             try:
-                # 1. Extract Text
+                # 1. Read File
                 file_ext = uploaded_file.name.split(".")[-1].lower()
                 if file_ext in ["xlsx", "xls"]:
                     raw_text = extract_text_from_excel(uploaded_file)
                 else:
                     raw_text = extract_text_from_pdf(uploaded_file)
                 
-                # 2. Check content
                 if not raw_text or len(raw_text) < 20:
-                    st.error("Could not read data from the file. Please ensure it is not empty.")
+                    st.error("File is empty or unreadable.")
                 else:
-                    # 3. Call Gemini
+                    # 2. Setup Model (Using selected model from sidebar)
                     model = genai.GenerativeModel(
-                        model_name="gemini-pro", 
+                        model_name=selected_model_name, 
                         system_instruction=SYSTEM_PROMPT
                     )
                     
+                    # 3. Generate
                     response = model.generate_content(f"Here is the filled questionnaire data:\n\n{raw_text}")
                     
-                    # 4. Display Result
                     st.success("Analysis Complete!")
                     st.markdown("---")
                     st.markdown(response.text)
                     
-                    # 5. Download Report Button
                     st.download_button(
-                        label="📥 Download Report (Markdown)",
+                        label="📥 Download Report",
                         data=response.text,
                         file_name=f"Audit_Report_{datetime.date.today()}.md",
                         mime="text/markdown"
                     )
                     
             except Exception as e:
-                st.error(f"An error occurred during analysis: {e}")
+                st.error(f"❌ An error occurred: {e}")
+                
+                # --- SELF-DIAGNOSIS BLOCK ---
+                st.warning("🔍 DEBUG INFO: Let's check which models are actually available for your key...")
+                try:
+                    available_models = []
+                    for m in genai.list_models():
+                        if 'generateContent' in m.supported_generation_methods:
+                            available_models.append(m.name)
+                    
+                    st.write("✅ **Available Models for your Key:**")
+                    st.code("\n".join(available_models))
+                    st.info(f"👉 Please try selecting one of these names in the Sidebar (AI Model Version). Currently selected: {selected_model_name}")
+                except Exception as debug_e:
+                    st.error(f"Could not list models. Is your API Key correct? Error: {debug_e}")
