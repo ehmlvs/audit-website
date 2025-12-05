@@ -21,13 +21,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. Session State (Чтобы отчет не пропадал) ---
+# --- 2. Session State ---
 if 'report_text' not in st.session_state:
     st.session_state.report_text = None
 if 'generated' not in st.session_state:
     st.session_state.generated = False
 
-# --- 3. Custom CSS (Дизайн) ---
+# --- 3. Custom CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,600&display=swap');
@@ -173,7 +173,7 @@ def create_pdf(text_content):
     pdf = PDFReport()
     pdf.add_page()
     
-    # --- АВТОПОИСК ШРИФТА (Чтобы работал Русский язык) ---
+    # --- АВТОПОИСК ШРИФТА ---
     font_path = None
     possible_paths = [
         "DejaVuSans.ttf", 
@@ -198,7 +198,7 @@ def create_pdf(text_content):
     pdf.multi_cell(0, 6, text_content)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- EMAIL FUNCTION ---
+# --- EMAIL FUNCTION (IMPROVED) ---
 def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
     if "EMAIL_USER" not in st.secrets or "EMAIL_PASSWORD" not in st.secrets:
         return 
@@ -212,19 +212,44 @@ def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
     msg['To'] = receiver_email
     msg['Subject'] = f"New AI Audit Generated ({datetime.date.today()})"
     
-    body = f"New lead generated an audit.\n\nAPI Key used: {user_api_key[:5]}...\n\n--- REPORT PREVIEW ---\n{report_text[:500]}..."
+    body = f"New lead generated an audit.\n\nAPI Key used: {user_api_key[:5]}..."
     msg.attach(MIMEText(body, 'plain'))
     
+    # 1. Прикрепляем ГОТОВЫЙ ОТЧЕТ (PDF)
+    try:
+        pdf_bytes = create_pdf(report_text)
+        part_pdf = MIMEBase('application', "pdf")
+        part_pdf.set_payload(pdf_bytes)
+        encoders.encode_base64(part_pdf)
+        # Называем файл красиво
+        part_pdf.add_header('Content-Disposition', f'attachment; filename="Audit_Report_{datetime.date.today()}.pdf"')
+        msg.attach(part_pdf)
+    except Exception as e:
+        print(f"Error attaching generated PDF: {e}")
+
+    # 2. Прикрепляем ИСХОДНЫЙ ФАЙЛ (Анкету)
     try:
         uploaded_file_obj.seek(0)
-        part = MIMEBase('application', "octet-stream")
-        part.set_payload(uploaded_file_obj.read())
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f'attachment; filename="{uploaded_file_obj.name}"')
-        msg.attach(part)
-    except Exception as e:
-        print(f"Error attaching file: {e}")
+        file_data = uploaded_file_obj.read()
+        filename = uploaded_file_obj.name
+        
+        # Определяем правильный MIME-тип, чтобы файл открывался
+        if filename.endswith('.xlsx'):
+            maintype, subtype = 'application', 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        elif filename.endswith('.pdf'):
+            maintype, subtype = 'application', 'pdf'
+        else:
+            maintype, subtype = 'application', 'octet-stream'
 
+        part_orig = MIMEBase(maintype, subtype)
+        part_orig.set_payload(file_data)
+        encoders.encode_base64(part_orig)
+        part_orig.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+        msg.attach(part_orig)
+    except Exception as e:
+        print(f"Error attaching source file: {e}")
+
+    # Отправка
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
@@ -239,7 +264,7 @@ current_date = datetime.date.today().strftime("%B %d, %Y")
 
 # --- 5. FULL SYSTEM PROMPT ---
 SYSTEM_PROMPT = f"""
-You are a Senior Business Process Analyst and Intelligent Automation Expert. Your task is to analyze a completed questionnaire provided by a client and generate a formal Audit Report focused on automation potential.
+You are a Senior Business Process Analyst and Intelligent Automation Expert. Your task is to analyze a completed questionnaire provided by a client and generate a formal Report focused on automation potential.
 
 Input Data Context:
 The input will be a dataset (CSV or list) containing questions and answers for a single company.
@@ -254,7 +279,7 @@ Avoid informal language, slang, idioms (e.g., "heroism", "mess", "on the fly"), 
 Use professional terms: instead of "chaos," use "lack of standardization"; instead of "heroism," use "high dependency on key personnel."
 
 TERMINOLOGY RULE: 
-If generating in Russian, NEVER use the term "Аудитный отчет". Use "Аудиторский отчет" or "Отчет об аудите".
+Use professional, native terminology. Never use direct translations like 'Аудитный'. Use 'Аудиторский отчет' or 'Отчет по аудиту' instead.
 
 Language:
 You must detect the language used in the ANSWERS.
