@@ -125,10 +125,15 @@ with st.sidebar:
 
     st.divider()
     
-    # --- MODEL SELECTOR (NEW) ---
-    # Позволяет выбрать модель вручную, если дефолтная не работает
-    model_options = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-1.5-flash-latest", "gemini-1.5-pro"]
-    selected_model_name = st.selectbox("AI Model Version (Advanced)", model_options, index=0)
+    # --- MODEL SELECTOR (UPDATED FOR YOUR ACCOUNT) ---
+    # We prioritize gemini-2.0-flash as it is the best general purpose model in your list
+    model_options = [
+        "gemini-2.0-flash", 
+        "gemini-2.0-pro-exp-02-05", 
+        "gemini-2.0-flash-exp",
+        "gemini-2.5-flash"
+    ]
+    selected_model_name = st.selectbox("AI Model Version", model_options, index=0)
     
     st.write("**Support:** support@aiaiaiautomation.com")
 
@@ -173,7 +178,8 @@ if st.button("🚀 Generate Audit Report"):
                 if not raw_text or len(raw_text) < 20:
                     st.error("File is empty or unreadable.")
                 else:
-                    # 2. Setup Model (Using selected model from sidebar)
+                    # 2. Setup Model 
+                    # Note: We use the exact string selected from the sidebar
                     model = genai.GenerativeModel(
                         model_name=selected_model_name, 
                         system_instruction=SYSTEM_PROMPT
@@ -190,22 +196,3 @@ if st.button("🚀 Generate Audit Report"):
                         label="📥 Download Report",
                         data=response.text,
                         file_name=f"Audit_Report_{datetime.date.today()}.md",
-                        mime="text/markdown"
-                    )
-                    
-            except Exception as e:
-                st.error(f"❌ An error occurred: {e}")
-                
-                # --- SELF-DIAGNOSIS BLOCK ---
-                st.warning("🔍 DEBUG INFO: Let's check which models are actually available for your key...")
-                try:
-                    available_models = []
-                    for m in genai.list_models():
-                        if 'generateContent' in m.supported_generation_methods:
-                            available_models.append(m.name)
-                    
-                    st.write("✅ **Available Models for your Key:**")
-                    st.code("\n".join(available_models))
-                    st.info(f"👉 Please try selecting one of these names in the Sidebar (AI Model Version). Currently selected: {selected_model_name}")
-                except Exception as debug_e:
-                    st.error(f"Could not list models. Is your API Key correct? Error: {debug_e}")
