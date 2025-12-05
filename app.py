@@ -4,9 +4,10 @@ import PyPDF2
 import pandas as pd
 import datetime
 import io
+import os
 from fpdf import FPDF
 
-# --- 1. Page Config (Must be first) ---
+# --- 1. Page Config ---
 st.set_page_config(
     page_title="AiAiAi Automation",
     page_icon="△",
@@ -14,23 +15,25 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. Custom CSS (The Design Magic) ---
+# --- 2. Session State (Чтобы отчет не пропадал) ---
+if 'report_text' not in st.session_state:
+    st.session_state.report_text = None
+if 'generated' not in st.session_state:
+    st.session_state.generated = False
+
+# --- 3. Custom CSS (Дизайн) ---
 st.markdown("""
 <style>
-    /* Подключаем шрифты: Playfair Display для заголовков, Inter для текста */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,600&display=swap');
 
-    /* Глобальный сброс цветов Streamlit */
     .stApp {
         background-color: #FFFFFF;
         color: #000000;
         font-family: 'Inter', sans-serif;
     }
     
-    /* Скрываем стандартный хедер и футер */
     header, footer {visibility: hidden !important;}
     
-    /* Стили для Логотипа */
     .logo-container {
         display: flex;
         align-items: center;
@@ -50,7 +53,6 @@ st.markdown("""
         font-size: 20px;
     }
 
-    /* Главный заголовок (Hero) */
     .hero-title {
         font-family: 'Playfair Display', serif;
         font-size: 80px;
@@ -66,7 +68,6 @@ st.markdown("""
         font-weight: 600;
     }
 
-    /* Овальные рамки шагов */
     .step-oval {
         border: 1px solid #000000;
         border-radius: 50px;
@@ -79,17 +80,16 @@ st.markdown("""
         white-space: nowrap;
     }
     
-    /* Стрелка между шагами */
     .step-arrow {
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 50px; /* Высота овала */
+        height: 50px;
         font-size: 24px;
         color: #000;
     }
 
-    /* Кастомная кнопка (Главная) */
+    /* КНОПКА ПО ЦЕНТРУ */
     div.stButton > button {
         background-color: white !important;
         color: black !important;
@@ -102,26 +102,13 @@ st.markdown("""
         display: block;
         margin: 0 auto;
         box-shadow: none !important;
-        transition: all 0.3s ease;
+        width: 100%;
     }
     div.stButton > button:hover {
         background-color: #f0f0f0 !important;
         border-color: #000 !important;
-        transform: scale(1.02);
     }
     
-    /* Стилизация File Uploader */
-    .stFileUploader {
-        padding-top: 0px;
-    }
-    
-    /* Убираем лишние отступы */
-    .block-container {
-        padding-top: 3rem;
-        padding-bottom: 5rem;
-    }
-
-    /* Стили для нижнего текста */
     .whats-next {
         text-align: center;
         margin-top: 60px;
@@ -139,7 +126,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- 3. Helper Functions (Logic) ---
+# --- 4. Logic Functions ---
 def extract_text_from_pdf(file):
     try:
         pdf_reader = PyPDF2.PdfReader(file)
@@ -161,41 +148,56 @@ def extract_text_from_excel(file):
     except Exception as e:
         return f"Error reading Excel: {e}"
 
-# PDF Generation Class
+# PDF Generation
 class PDFReport(FPDF):
     def header(self):
-        # Logo: Пытаемся вставить logo.png, который лежит в корне репозитория
+        # Logo only
         try:
             self.image('logo.png', 10, 8, 15) 
-            self.set_xy(30, 12)
         except:
-            self.set_xy(10, 12)
-            
-        self.set_font('Arial', 'B', 14)
-        self.cell(0, 0, 'AiAiAi Automation Audit', 0, 0, 'L')
+            pass 
         self.ln(20)
 
     def footer(self):
         self.set_y(-20)
-        self.set_font('Arial', 'I', 9)
+        self.set_font('Arial', 'I', 9) 
         self.cell(0, 10, 'Questions? Contact elena.hmelovs@gmail.com', 0, 0, 'C')
 
 def create_pdf(text_content):
     pdf = PDFReport()
     pdf.add_page()
-    pdf.set_font("Arial", size=11)
     
-    # Очистка текста для PDF (latin-1 ограничение)
-    # Если текст на русском, в PDF могут быть знаки вопроса, т.к. нет шрифта .ttf
-    # Но файл Markdown скачается корректно.
-    clean_text = text_content.encode('latin-1', 'replace').decode('latin-1')
-    pdf.multi_cell(0, 6, clean_text)
+    # --- АВТОПОИСК ШРИФТА (Чтобы работал Русский язык) ---
+    # Мы ищем стандартный шрифт DejaVuSans на сервере Linux
+    font_path = None
+    possible_paths = [
+        "DejaVuSans.ttf", # Если вы загрузили его сами
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", # Стандарт на Linux
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf" # Альтернатива
+    ]
     
+    for path in possible_paths:
+        if os.path.exists(path):
+            font_path = path
+            break
+            
+    if font_path:
+        # Если нашли шрифт - используем его (Русский будет работать)
+        try:
+            pdf.add_font('CustomFont', '', font_path, uni=True)
+            pdf.set_font('CustomFont', '', 11)
+        except:
+            pdf.set_font("Arial", size=11)
+    else:
+        # Если шрифта нет вообще - используем Arial (Русский сломается)
+        pdf.set_font("Arial", size=11)
+    
+    pdf.multi_cell(0, 6, text_content)
     return pdf.output(dest='S').encode('latin-1')
 
 current_date = datetime.date.today().strftime("%B %d, %Y")
 
-# --- 4. System Prompt ---
+# --- 5. FULL SYSTEM PROMPT (DO NOT CHANGE) ---
 SYSTEM_PROMPT = f"""
 You are a Senior Business Process Analyst and Intelligent Automation Expert. Your task is to analyze a completed questionnaire provided by a client and generate a formal Audit Report focused on automation potential.
 
@@ -207,13 +209,12 @@ Strict Constraints & Guardrails:
 Fact-Based Analysis Only: Base your analysis STRICTLY on the provided answers. Do not invent, assume, or hallucinate details.
 Example: If the input mentions "Trello is used for tasks," do NOT assume "passwords are stored insecurely in Trello" unless the text explicitly says so.
 If data is missing for a specific section, state: "Insufficient data provided."
-
-Formal Tone: Use professional Business Language.
-Avoid informal language, slang, idioms.
-Use professional terms: instead of "chaos," use "lack of standardization".
+Formal Tone: Use professional Business English.
+Avoid informal language, slang, idioms (e.g., "heroism", "mess", "on the fly"), or emotive punctuation (!).
+Use professional terms: instead of "chaos," use "lack of standardization"; instead of "heroism," use "high dependency on key personnel."
 
 TERMINOLOGY RULE: 
-Use professional, native terminology. Never use direct translations like 'Аудитный'. Use 'Аудиторский отчет' or 'Отчет по аудиту' instead
+If generating in Russian, NEVER use the term "Аудитный отчет". Use "Аудиторский отчет" or "Отчет об аудите".
 
 Language:
 You must detect the language used in the ANSWERS.
@@ -262,12 +263,12 @@ Risks: Identify risks (e.g., security, bus factor, data integrity) based only on
 Propose a 3-phase plan (e.g., Phase 1: Foundation, Phase 2: Pilot, Phase 3: Scaling).
 Constraint: Ensure every step in the roadmap corresponds to a finding in Section 3.
 
-Use Markdown.
+Use Markdown formatting.
 """
 
-# --- 5. UI Layout Implementation ---
+# --- 6. Layout ---
 
-# -- A. Logo Section --
+# Logo
 st.markdown("""
 <div class="logo-container">
     <div class="logo-icon">△</div>
@@ -275,7 +276,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# -- B. Hero Section --
+# Hero
 st.markdown("""
 <div class="hero-title">
     One minute to <br>
@@ -283,133 +284,117 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# -- C. The "3 Steps" Flow --
+# Steps Grid
 col_step1, col_arr1, col_step2, col_arr2, col_step3 = st.columns([3, 0.5, 3, 0.5, 3])
 
-# --- STEP 1: Fill the form ---
+# Step 1
 with col_step1:
     st.markdown('<div class="step-oval">Fill the form</div>', unsafe_allow_html=True)
-    
     try:
         with open("Template.xlsx", "rb") as file:
-            st.download_button(
-                label="▼ Download the Template",
-                data=file,
-                file_name="Template.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="dl_btn"
-            )
-    except FileNotFoundError:
-        st.error("Template.xlsx missing")
+            st.download_button("▼ Download Template", file, "Template.xlsx", key="dl_tmpl")
+    except:
+        st.error("Template missing")
 
-# --- ARROW 1 ---
+# Arrow 1
 with col_arr1:
     st.markdown('<div class="step-arrow">→</div>', unsafe_allow_html=True)
 
-# --- STEP 2: Agree to rules ---
+# Step 2
 with col_step2:
     st.markdown('<div class="step-oval">Agree to rules</div>', unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
+    agreement = st.checkbox("I agree to Terms & Conditions")
     
-    # -----------------------------------------------------------
-    # ВСТАВЬТЕ СЮДА ВАШУ ССЫЛКУ "COPY PERMLINK" МЕЖДУ КАВЫЧКАМИ
-    terms_link = "https://github.com/ehmlvs/audit-website/blob/767a7a34e368c172995134ed77c247f8090b472d/terms.pdf"
-    # -----------------------------------------------------------
-    
-    agreement = st.checkbox(f"I agree to [Terms and Conditions]({terms_link})")
+    # Кнопка скачивания Terms (Файл должен лежать в репозитории как terms.pdf)
+    try:
+        with open("terms.pdf", "rb") as f:
+            st.download_button("📄 Download Terms", f, "terms.pdf", key="dl_terms")
+    except:
+        # Если файла нет, ничего не показываем или warning
+        pass
 
-# --- ARROW 2 ---
+# Arrow 2
 with col_arr2:
     st.markdown('<div class="step-arrow">→</div>', unsafe_allow_html=True)
 
-# --- STEP 3: Upload answers ---
+# Step 3
 with col_step3:
     st.markdown('<div class="step-oval">Upload answers</div>', unsafe_allow_html=True)
-    
     uploaded_file = st.file_uploader("", type=["xlsx", "xls", "pdf"], label_visibility="collapsed")
 
 
-# -- D. Spacer --
 st.markdown("<br><br>", unsafe_allow_html=True)
 
-# -- E. Main CTA Button & Logic --
-# Центрирование кнопки: [1, 0.8, 1] - средняя колонка узкая, кнопка будет по центру
-col_left, col_btn, col_right = st.columns([1, 0.8, 1])
+# --- Main Button (Centered) ---
+c1, c2, c3 = st.columns([1, 1, 1])
 
-with col_btn:
+with c2:
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
     else:
         api_key = st.text_input("API Key", type="password")
 
-    start_audit = st.button("Get My AI-First Plan")
+    if st.button("Get My AI-First Plan"):
+        st.session_state.generated = True 
+        
+        if not agreement:
+            st.error("Please agree to the Terms and Conditions.")
+            st.session_state.generated = False
+        elif not uploaded_file:
+            st.error("Please upload your filled questionnaire.")
+            st.session_state.generated = False
+        elif not api_key:
+            st.error("API Key missing.")
+            st.session_state.generated = False
+        else:
+            with st.spinner("Analyzing your business DNA..."):
+                try:
+                    genai.configure(api_key=api_key)
+                    
+                    file_ext = uploaded_file.name.split(".")[-1].lower()
+                    if file_ext in ["xlsx", "xls"]:
+                        raw_text = extract_text_from_excel(uploaded_file)
+                    else:
+                        raw_text = extract_text_from_pdf(uploaded_file)
+                    
+                    if not raw_text or len(raw_text) < 10:
+                        st.error("File seems empty.")
+                        st.session_state.generated = False
+                    else:
+                        # Model setup (Using 2.0-flash as it is available and fast)
+                        model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=SYSTEM_PROMPT)
+                        response = model.generate_content(f"Data:\n{raw_text}")
+                        st.session_state.report_text = response.text
+                        
+                except Exception as e:
+                    st.error(f"Error: {e}")
+                    st.session_state.generated = False
 
 
-# --- 6. Execution ---
-if start_audit:
-    if not agreement:
-        st.error("Please agree to the Terms and Conditions in Step 2.")
-    elif not uploaded_file:
-        st.error("Please upload your filled questionnaire in Step 3.")
-    elif not api_key:
-        st.error("System Error: API Key missing.")
-    else:
-        with st.spinner("Analyzing your business DNA..."):
-            try:
-                genai.configure(api_key=api_key)
-                
-                # 1. Extract
-                file_ext = uploaded_file.name.split(".")[-1].lower()
-                if file_ext in ["xlsx", "xls"]:
-                    raw_text = extract_text_from_excel(uploaded_file)
-                else:
-                    raw_text = extract_text_from_pdf(uploaded_file)
-                
-                if not raw_text or len(raw_text) < 10:
-                    st.error("File seems empty.")
-                else:
-                    # 2. Analyze
-                    model = genai.GenerativeModel(
-                        model_name="gemini-2.0-flash", 
-                        system_instruction=SYSTEM_PROMPT
-                    )
-                    
-                    response = model.generate_content(f"Data:\n{raw_text}")
-                    
-                    # 3. Success UI
-                    st.success("Plan Generated Successfully!")
-                    st.markdown("---")
-                    st.markdown(response.text)
-                    
-                    # 4. Buttons (MD and PDF)
-                    col_md, col_pdf = st.columns(2)
-                    
-                    with col_md:
-                        st.download_button(
-                            label="📥 Download Markdown",
-                            data=response.text,
-                            file_name=f"AI_First_Plan_{datetime.date.today()}.md",
-                            mime="text/markdown"
-                        )
-                    
-                    with col_pdf:
-                        try:
-                            pdf_bytes = create_pdf(response.text)
-                            st.download_button(
-                                label="📄 Download PDF Report",
-                                data=pdf_bytes,
-                                file_name=f"AI_First_Plan_{datetime.date.today()}.pdf",
-                                mime="application/pdf"
-                            )
-                        except Exception as pdf_err:
-                            st.warning(f"PDF generation issue: {pdf_err}")
+# --- Display Result ---
+if st.session_state.report_text:
+    st.success("Plan Generated Successfully!")
+    st.markdown("---")
+    st.markdown(st.session_state.report_text)
+    
+    # Кнопка скачивания PDF (по центру)
+    try:
+        pdf_bytes = create_pdf(st.session_state.report_text)
+        
+        d1, d2, d3 = st.columns([1, 1, 1])
+        with d2:
+            st.download_button(
+                label="📄 Download PDF Report",
+                data=pdf_bytes,
+                file_name=f"AI_First_Plan_{datetime.date.today()}.pdf",
+                mime="application/pdf"
+            )
+    except Exception as pdf_err:
+        st.error(f"PDF Error: {pdf_err}")
 
-                    
-            except Exception as e:
-                st.error(f"Error: {e}")
 
-# --- 7. What's Next Section (Text Only) ---
+# Footer
 st.markdown("""
 <div class="whats-next">
     What's next? <br>
