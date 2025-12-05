@@ -5,6 +5,12 @@ import pandas as pd
 import datetime
 import io
 import os
+import time
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 from fpdf import FPDF
 
 # --- 1. Page Config ---
@@ -168,12 +174,11 @@ def create_pdf(text_content):
     pdf.add_page()
     
     # --- АВТОПОИСК ШРИФТА (Чтобы работал Русский язык) ---
-    # Мы ищем стандартный шрифт DejaVuSans на сервере Linux
     font_path = None
     possible_paths = [
-        "DejaVuSans.ttf", # Если вы загрузили его сами
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", # Стандарт на Linux
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf" # Альтернатива
+        "DejaVuSans.ttf", 
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf" 
     ]
     
     for path in possible_paths:
@@ -182,22 +187,57 @@ def create_pdf(text_content):
             break
             
     if font_path:
-        # Если нашли шрифт - используем его (Русский будет работать)
         try:
             pdf.add_font('CustomFont', '', font_path, uni=True)
             pdf.set_font('CustomFont', '', 11)
         except:
             pdf.set_font("Arial", size=11)
     else:
-        # Если шрифта нет вообще - используем Arial (Русский сломается)
         pdf.set_font("Arial", size=11)
     
     pdf.multi_cell(0, 6, text_content)
     return pdf.output(dest='S').encode('latin-1')
 
+# --- EMAIL FUNCTION ---
+def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
+    if "EMAIL_USER" not in st.secrets or "EMAIL_PASSWORD" not in st.secrets:
+        return 
+    
+    sender_email = st.secrets["EMAIL_USER"]
+    sender_password = st.secrets["EMAIL_PASSWORD"]
+    receiver_email = "elena.hmelovs@gmail.com"
+    
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = f"New AI Audit Generated ({datetime.date.today()})"
+    
+    body = f"New lead generated an audit.\n\nAPI Key used: {user_api_key[:5]}...\n\n--- REPORT PREVIEW ---\n{report_text[:500]}..."
+    msg.attach(MIMEText(body, 'plain'))
+    
+    try:
+        uploaded_file_obj.seek(0)
+        part = MIMEBase('application', "octet-stream")
+        part.set_payload(uploaded_file_obj.read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f'attachment; filename="{uploaded_file_obj.name}"')
+        msg.attach(part)
+    except Exception as e:
+        print(f"Error attaching file: {e}")
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, receiver_email, text)
+        server.quit()
+    except Exception as e:
+        print(f"Email error: {e}")
+
 current_date = datetime.date.today().strftime("%B %d, %Y")
 
-# --- 5. FULL SYSTEM PROMPT (DO NOT CHANGE) ---
+# --- 5. FULL SYSTEM PROMPT ---
 SYSTEM_PROMPT = f"""
 You are a Senior Business Process Analyst and Intelligent Automation Expert. Your task is to analyze a completed questionnaire provided by a client and generate a formal Audit Report focused on automation potential.
 
@@ -237,7 +277,10 @@ Current State Assessment: High-level summary of the process maturity.
 Key Conclusion: The primary opportunity for improvement.
 
 2. Maturity Assessment
-Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader.
+Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader 
+
+[Image of CMMI Maturity Levels]
+.
 Company Assessment: Assign a specific level (1-5) to The Company.
 Justification: Justify the assigned level using specific evidence from the answers (e.g., "Level 2 because processes are repeatable but rely on specific individuals...").
 Data Readiness Index: Assess the quality and structure of data (e.g., structured databases vs. unstructured PDFs/Excel).
@@ -349,27 +392,47 @@ with c2:
             st.session_state.generated = False
         else:
             with st.spinner("Analyzing your business DNA..."):
-                try:
-                    genai.configure(api_key=api_key)
-                    
-                    file_ext = uploaded_file.name.split(".")[-1].lower()
-                    if file_ext in ["xlsx", "xls"]:
-                        raw_text = extract_text_from_excel(uploaded_file)
-                    else:
-                        raw_text = extract_text_from_pdf(uploaded_file)
-                    
-                    if not raw_text or len(raw_text) < 10:
-                        st.error("File seems empty.")
-                        st.session_state.generated = False
-                    else:
-                        # Model setup (Using 2.0-flash as it is available and fast)
+                # --- RETRY LOGIC (Защита от ошибки 429) ---
+                max_retries = 3
+                success = False
+                
+                for attempt in range(max_retries):
+                    try:
+                        genai.configure(api_key=api_key)
+                        
+                        file_ext = uploaded_file.name.split(".")[-1].lower()
+                        if file_ext in ["xlsx", "xls"]:
+                            raw_text = extract_text_from_excel(uploaded_file)
+                        else:
+                            raw_text = extract_text_from_pdf(uploaded_file)
+                        
+                        if not raw_text or len(raw_text) < 10:
+                            st.error("File seems empty.")
+                            break
+                        
+                        # Пытаемся сгенерировать
                         model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=SYSTEM_PROMPT)
                         response = model.generate_content(f"Data:\n{raw_text}")
+                        
                         st.session_state.report_text = response.text
                         
-                except Exception as e:
-                    st.error(f"Error: {e}")
-                    st.session_state.generated = False
+                        # Отправка почты (Внутри try, если генерация успешна)
+                        send_email_to_admin(response.text, uploaded_file, api_key)
+                        success = True
+                        break # Выходим из цикла, всё ок
+                        
+                    except Exception as e:
+                        # Если ошибка 429 (Resource Exhausted)
+                        if "429" in str(e) or "resource" in str(e).lower():
+                            if attempt < max_retries - 1:
+                                st.toast(f"AI is busy, retrying in 10 seconds... (Attempt {attempt+1}/{max_retries})")
+                                time.sleep(10) # Ждем 10 секунд
+                                continue
+                        
+                        # Если другая ошибка или кончились попытки
+                        st.error(f"Error: {e}")
+                        st.session_state.generated = False
+                        break
 
 
 # --- Display Result ---
