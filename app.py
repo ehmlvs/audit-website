@@ -126,7 +126,6 @@ with st.sidebar:
     st.divider()
     
     # --- MODEL SELECTOR (UPDATED FOR YOUR ACCOUNT) ---
-    # We prioritize gemini-2.0-flash as it is the best general purpose model in your list
     model_options = [
         "gemini-2.0-flash", 
         "gemini-2.0-pro-exp-02-05", 
@@ -157,42 +156,4 @@ agreement = st.checkbox("I agree to the processing of personal data.")
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
-    api_key = st.text_input("Enter Google Gemini API Key", type="password")
-
-# --- 6. Execution Logic ---
-if st.button("🚀 Generate Audit Report"):
-    if not agreement or not uploaded_file or not api_key:
-        st.error("Please ensure you accepted terms, uploaded a file, and have an API key.")
-    else:
-        genai.configure(api_key=api_key)
-        
-        with st.spinner("🤖 AI is analyzing..."):
-            try:
-                # 1. Read File
-                file_ext = uploaded_file.name.split(".")[-1].lower()
-                if file_ext in ["xlsx", "xls"]:
-                    raw_text = extract_text_from_excel(uploaded_file)
-                else:
-                    raw_text = extract_text_from_pdf(uploaded_file)
-                
-                if not raw_text or len(raw_text) < 20:
-                    st.error("File is empty or unreadable.")
-                else:
-                    # 2. Setup Model 
-                    # Note: We use the exact string selected from the sidebar
-                    model = genai.GenerativeModel(
-                        model_name=selected_model_name, 
-                        system_instruction=SYSTEM_PROMPT
-                    )
-                    
-                    # 3. Generate
-                    response = model.generate_content(f"Here is the filled questionnaire data:\n\n{raw_text}")
-                    
-                    st.success("Analysis Complete!")
-                    st.markdown("---")
-                    st.markdown(response.text)
-                    
-                    st.download_button(
-                        label="📥 Download Report",
-                        data=response.text,
-                        file_name=f"Audit_Report_{datetime.date.today()}.md",
+    api_key = st.text_input
