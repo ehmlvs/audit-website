@@ -125,7 +125,7 @@ with st.sidebar:
 
     st.divider()
     
-    # --- MODEL SELECTOR (UPDATED FOR YOUR ACCOUNT) ---
+    # --- MODEL SELECTOR ---
     model_options = [
         "gemini-2.0-flash", 
         "gemini-2.0-pro-exp-02-05", 
@@ -138,22 +138,4 @@ with st.sidebar:
 
 # --- 5. Main Content ---
 st.title("📊 AI Business Process Audit")
-st.markdown("**Get a professional audit of your business processes in 60 seconds.**")
-st.divider()
-
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("User Details")
-    user_email = st.text_input("Your Email", placeholder="name@company.com")
-with col2:
-    st.subheader("Step 2: Upload Data")
-    uploaded_file = st.file_uploader("Upload filled questionnaire", type=["xlsx", "xls", "pdf"])
-
-st.markdown("### 🔒 Terms & Conditions")
-agreement = st.checkbox("I agree to the processing of personal data.")
-
-# API Key Handling
-if "GOOGLE_API_KEY" in st.secrets:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-else:
-    api_key = st.text_input
+st
