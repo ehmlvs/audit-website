@@ -436,7 +436,7 @@ with c2:
                             break
                         
                         # Пытаемся сгенерировать
-                        model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=SYSTEM_PROMPT)
+                        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
                         response = model.generate_content(f"Data:\n{raw_text}")
                         
                         st.session_state.report_text = response.text
