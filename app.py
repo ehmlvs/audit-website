@@ -198,7 +198,7 @@ def create_pdf(text_content):
     pdf.multi_cell(0, 6, text_content)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- EMAIL FUNCTION (IMPROVED) ---
+# --- EMAIL FUNCTION ---
 def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
     if "EMAIL_USER" not in st.secrets or "EMAIL_PASSWORD" not in st.secrets:
         return 
@@ -221,7 +221,6 @@ def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
         part_pdf = MIMEBase('application', "pdf")
         part_pdf.set_payload(pdf_bytes)
         encoders.encode_base64(part_pdf)
-        # Называем файл красиво
         part_pdf.add_header('Content-Disposition', f'attachment; filename="Audit_Report_{datetime.date.today()}.pdf"')
         msg.attach(part_pdf)
     except Exception as e:
@@ -233,7 +232,7 @@ def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
         file_data = uploaded_file_obj.read()
         filename = uploaded_file_obj.name
         
-        # Определяем правильный MIME-тип, чтобы файл открывался
+        # Определяем MIME-тип
         if filename.endswith('.xlsx'):
             maintype, subtype = 'application', 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         elif filename.endswith('.pdf'):
@@ -302,9 +301,7 @@ Current State Assessment: High-level summary of the process maturity.
 Key Conclusion: The primary opportunity for improvement.
 
 2. Maturity Assessment
-Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader 
-
-[Image of CMMI Maturity Levels]
+Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader
 .
 Company Assessment: Assign a specific level (1-5) to The Company.
 Justification: Justify the assigned level using specific evidence from the answers (e.g., "Level 2 because processes are repeatable but rely on specific individuals...").
@@ -435,8 +432,8 @@ with c2:
                             st.error("File seems empty.")
                             break
                         
-                        # Пытаемся сгенерировать
-                        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
+                        # --- ВАЖНО: Используем LITE версию, чтобы избежать 404 и 429 ---
+                        model = genai.GenerativeModel("gemini-2.0-flash-lite-preview-02-05", system_instruction=SYSTEM_PROMPT)
                         response = model.generate_content(f"Data:\n{raw_text}")
                         
                         st.session_state.report_text = response.text
