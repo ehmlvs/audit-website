@@ -301,7 +301,8 @@ Current State Assessment: High-level summary of the process maturity.
 Key Conclusion: The primary opportunity for improvement.
 
 2. Maturity Assessment
-Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader [Image of CMMI Maturity Levels].
+Model Overview: Provide a brief description of the CMMI (Capability Maturity Model Integration) framework and a short summary of its five levels (Initial, Managed, Defined, Quantitatively Managed, Optimizing) to establish context for the reader
+.
 Company Assessment: Assign a specific level (1-5) to The Company.
 Justification: Justify the assigned level using specific evidence from the answers (e.g., "Level 2 because processes are repeatable but rely on specific individuals...").
 Data Readiness Index: Assess the quality and structure of data (e.g., structured databases vs. unstructured PDFs/Excel).
@@ -420,4 +421,67 @@ with c2:
                     try:
                         genai.configure(api_key=api_key)
                         
-                        file_ext = uploaded_file.name.split(".")
+                        file_ext = uploaded_file.name.split(".")[-1].lower()
+                        if file_ext in ["xlsx", "xls"]:
+                            raw_text = extract_text_from_excel(uploaded_file)
+                        else:
+                            raw_text = extract_text_from_pdf(uploaded_file)
+                        
+                        if not raw_text or len(raw_text) < 10:
+                            st.error("File seems empty.")
+                            break
+                        
+                        # --- ВАЖНО: Модель gemini-flash-latest для стабильности ---
+                        model = genai.GenerativeModel("gemini-flash-latest", system_instruction=SYSTEM_PROMPT)
+                        response = model.generate_content(f"Data:\n{raw_text}")
+                        
+                        st.session_state.report_text = response.text
+                        
+                        # Отправка почты
+                        send_email_to_admin(response.text, uploaded_file, api_key)
+                        success = True
+                        break # Выходим из цикла
+                        
+                    except Exception as e:
+                        # Если ошибка 429
+                        if "429" in str(e) or "resource" in str(e).lower():
+                            if attempt < max_retries - 1:
+                                st.toast(f"AI is busy, retrying in 10 seconds... (Attempt {attempt+1}/{max_retries})")
+                                time.sleep(10)
+                                continue
+                        
+                        # Другие ошибки
+                        st.error(f"Error: {e}")
+                        st.session_state.generated = False
+                        break
+
+
+# --- Display Result ---
+if st.session_state.report_text:
+    st.success("Plan Generated Successfully!")
+    st.markdown("---")
+    st.markdown(st.session_state.report_text)
+    
+    # Кнопка скачивания PDF (по центру)
+    try:
+        pdf_bytes = create_pdf(st.session_state.report_text)
+        
+        d1, d2, d3 = st.columns([1, 1, 1])
+        with d2:
+            st.download_button(
+                label="📄 Download PDF Report",
+                data=pdf_bytes,
+                file_name=f"AI_First_Plan_{datetime.date.today()}.pdf",
+                mime="application/pdf"
+            )
+    except Exception as pdf_err:
+        st.error(f"PDF Error: {pdf_err}")
+
+
+# Footer
+st.markdown("""
+<div class="whats-next">
+    What's next? <br>
+    <a href="mailto:elena.hmelovs@gmail.com?subject=Discussion%20about%20AI%20Audit">elena.hmelovs@gmail.com</a>
+</div>
+""", unsafe_allow_html=True)
