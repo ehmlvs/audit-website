@@ -345,7 +345,7 @@ st.markdown("""
 st.markdown("""
 <div class="hero-title">
     One minute to <br>
-    go <span class="hero-italic">AI first</span>
+    check <span class="hero-italic">AI readiness</span>
 </div>
 """, unsafe_allow_html=True)
 
