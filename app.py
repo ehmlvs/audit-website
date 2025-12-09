@@ -173,29 +173,35 @@ def create_pdf(text_content):
     pdf = PDFReport()
     pdf.add_page()
     
-    # --- АВТОПОИСК ШРИФТА ---
-    font_path = None
-    possible_paths = [
-        "DejaVuSans.ttf", 
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf" 
-    ]
-    
-    for path in possible_paths:
-        if os.path.exists(path):
-            font_path = path
-            break
+    # Имена твоих файловони лежат рядом с app.py
+ 
+    font_reg = "DejaVuSans.ttf"
+    font_bold = "DejaVuSans-Bold.ttf"
+    font_italic = "DejaVuSans-Oblique.ttf"
+    font_bold_italic = "DejaVuSans-BoldOblique.ttf"
+
+    # Проверяем наличие основного шрифта
+    if os.path.exists(font_reg):
+        pdf.add_font('DejaVu', '', font_reg)           # Обычный
+        
+        # Подгружаем остальные стили, если файлы на месте
+        if os.path.exists(font_bold):
+            pdf.add_font('DejaVu', 'B', font_bold)     # Жирный
             
-    if font_path:
-        try:
-            pdf.add_font('CustomFont', '', font_path, uni=True)
-            pdf.set_font('CustomFont', '', 11)
-        except:
-            pdf.set_font("Arial", size=11)
+        if os.path.exists(font_italic):
+            pdf.add_font('DejaVu', 'I', font_italic)   # Курсив
+            
+        if os.path.exists(font_bold_italic):
+            pdf.add_font('DejaVu', 'BI', font_bold_italic) # Жирный курсив
+
+        pdf.set_font('DejaVu', size=11)
     else:
+        # Если шрифты не найдены, используем стандартный (но без кириллицы)
         pdf.set_font("Arial", size=11)
     
-    pdf.multi_cell(0, 6, text_content)
+    # Включаем markdown=True для форматирования (**жирный**, *курсив*)
+    pdf.multi_cell(0, 6, text_content, markdown=True)
+    
     return pdf.output(dest='S').encode('latin-1')
 
 # --- EMAIL FUNCTION ---
