@@ -174,65 +174,66 @@ def create_pdf(text_content):
     pdf.add_page()
     
     # --- НАСТРОЙКА ШРИФТОВ ---
-    font_family = "Arial" # Запасной вариант
+    font_family = "Arial" # Запасной вариант (если шрифт не найдется)
     
-    # Пытаемся найти шрифт для русского языка
+    # Ищем шрифт для русского языка
     font_path = "DejaVuSans.ttf" 
     if os.path.exists(font_path):
         try:
-            # Регистрируем шрифт (обычный и жирный)
             pdf.add_font('CustomFont', '', font_path, uni=True)
             pdf.add_font('CustomFont', 'B', font_path, uni=True)
             font_family = 'CustomFont'
         except:
             pass
 
-    # Устанавливаем базовый шрифт
     pdf.set_font(font_family, size=11)
     
     # --- УМНОЕ ФОРМАТИРОВАНИЕ ---
-    # Разбиваем весь текст на строки
     lines = text_content.split('\n')
     
     for line in lines:
         line = line.strip()
-        
-        # Пропускаем пустые строки, но добавляем небольшой отступ
         if not line:
             pdf.ln(3) 
             continue
-            
-        # 1. ЗАГОЛОВКИ (Header 1: #) -> Крупно и жирно
-        if line.startswith('# '):
-            clean_line = line.replace('# ', '').replace('**', '')
-            pdf.ln(5) # Отступ перед заголовком
-            pdf.set_font(font_family, 'B', 16)
-            pdf.multi_cell(0, 8, clean_line)
-            pdf.set_font(font_family, '', 11) # Возврат к обычному
-            
-        # 2. ПОДЗАГОЛОВКИ (Header 2: ##) -> Средне и жирно
-        elif line.startswith('## '):
-            clean_line = line.replace('## ', '').replace('**', '')
-            pdf.ln(3)
-            pdf.set_font(font_family, 'B', 13)
-            pdf.multi_cell(0, 6, clean_line)
-            pdf.set_font(font_family, '', 11)
-            
-        # 3. СПИСКИ (* или -) -> С отступом
-        elif line.startswith('* ') or line.startswith('- '):
-            clean_line = line[2:].replace('**', '') 
-            current_x = pdf.get_x()
-            pdf.set_x(current_x + 5) # Сдвигаем вправо
-            pdf.multi_cell(0, 5, '- ' + clean_line)
-            pdf.set_x(current_x) # Возвращаем обратно
-            
-        # 4. ОБЫЧНЫЙ ТЕКСТ
-        else:
-            # Просто убираем markdown жирность (**), чтобы текст был чистым
-            clean_line = line.replace('**', '').replace('__', '').replace('### ', '')
-            pdf.multi_cell(0, 5, clean_line)
+        
+        # Безопасный блок: если строка ломает PDF, мы её пропускаем, но не роняем сайт
+        try:
+            # 1. ЗАГОЛОВКИ (Header 1: #)
+            if line.startswith('# '):
+                clean_line = line.replace('# ', '').replace('**', '')
+                pdf.ln(5)
+                pdf.set_x(10) # Сброс отступа
+                pdf.set_font(font_family, 'B', 16)
+                pdf.multi_cell(0, 8, clean_line)
+                pdf.set_font(font_family, '', 11) 
+                
+            # 2. ПОДЗАГОЛОВКИ (Header 2: ##)
+            elif line.startswith('## '):
+                clean_line = line.replace('## ', '').replace('**', '')
+                pdf.ln(3)
+                pdf.set_x(10) # Сброс отступа
+                pdf.set_font(font_family, 'B', 13)
+                pdf.multi_cell(0, 6, clean_line)
+                pdf.set_font(font_family, '', 11)
+                
+            # 3. СПИСКИ (* или -) -> БЕЗОПАСНЫЙ ОТСТУП
+            elif line.startswith('* ') or line.startswith('- '):
+                clean_line = line[2:].replace('**', '') 
+                pdf.set_x(15) # Жесткий отступ 15мм (стандарт 10мм + 5мм)
+                pdf.multi_cell(0, 5, '- ' + clean_line)
+                
+            # 4. ОБЫЧНЫЙ ТЕКСТ
+            else:
+                clean_line = line.replace('**', '').replace('__', '').replace('### ', '')
+                pdf.set_x(10) # Стандартный отступ слева
+                pdf.multi_cell(0, 5, clean_line)
+                
+        except Exception as e:
+            print(f"Error printing line: {e}")
+            continue
 
-    return pdf.output(dest='S').encode('latin-1')
+    return bytes(pdf.output())
 
 # --- EMAIL FUNCTION ---
 def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
