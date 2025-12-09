@@ -170,6 +170,27 @@ class PDFReport(FPDF):
         self.cell(0, 10, 'Questions? Contact elena.hmelovs@gmail.com', 0, 0, 'C')
 
 def create_pdf(text_content):
+    # --- 1. ОЧИСТКА ТЕКСТА ОТ ОШИБОК ФОРМАТИРОВАНИЯ ---
+    # Убираем экранирование доллара (\$ -> $)
+    text_content = text_content.replace(r"\$", "$")
+    
+    # Исправляем отступы, которые ломают заголовки и списки
+    lines = text_content.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        stripped = line.strip() # Убираем пробелы по краям
+        
+        # Если строка - это заголовок (#) или список (*), убираем отступы слева
+        if stripped.startswith('#') or stripped.startswith('*'):
+            cleaned_lines.append(stripped)
+        else:
+            # Для обычного текста оставляем как есть (чтобы не слиплись абзацы)
+            cleaned_lines.append(line)
+            
+    # Собираем текст обратно
+    text_content = "\n".join(cleaned_lines)
+    # ---------------------------------------------------
+
     pdf = PDFReport()
     pdf.add_page()
     
@@ -196,10 +217,9 @@ def create_pdf(text_content):
     else:
         pdf.set_font("Arial", size=11)
     
-    # Генерация текста с Markdown
+    # Генерируем PDF с Markdown
     pdf.multi_cell(0, 6, text_content, markdown=True)
     
-    # Возврат байтов
     return bytes(pdf.output())
 
 # --- EMAIL FUNCTION ---
