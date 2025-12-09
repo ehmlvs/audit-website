@@ -170,37 +170,56 @@ class PDFReport(FPDF):
         self.cell(0, 10, 'Questions? Contact elena.hmelovs@gmail.com', 0, 0, 'C')
 
 def create_pdf(text_content):
-    # --- 1. ОЧИСТКА ТЕКСТА ОТ ОШИБОК ФОРМАТИРОВАНИЯ ---
-    # Убираем экранирование доллара (\$ -> $)
+    import re  # Импортируем тут для работы "чистильщика"
+    
+    # --- БЛОК АГРЕССИВНОЙ ЧИСТКИ ---
+    
+    # 1. Убираем экранирование ($)
     text_content = text_content.replace(r"\$", "$")
     
-    # Исправляем отступы, которые ломают заголовки и списки
+    # 2. Исправляем заголовки, если они слиплись (##Text -> ## Text)
+    # Ищет от 2 до 6 решеток, после которых НЕТ пробела, и добавляет его
+    text_content = re.sub(r'(#{2,6})([^\s#])', r'\1 \2', text_content)
+
+    # 3. Исправляем списки, если они слиплись (*Text -> * Text)
+    # Ищет звездочку в начале строки без пробела
+    text_content = re.sub(r'^(\*)([^\s])', r'\1 \2', text_content, flags=re.MULTILINE)
+
+    # 4. САМОЕ ВАЖНОЕ: Добавляем пустую строку перед каждым заголовком
+    # FPDF2 часто игнорирует заголовок, если перед ним нет пустой строки.
+    # Мы заменяем любой переход строки перед решетками на двойной переход.
+    text_content = re.sub(r'\n(#{2,6})', r'\n\n\1', text_content)
+
+    # 5. Убираем лишние пробелы в начале строк (кроме отступов списка)
     lines = text_content.split('\n')
     cleaned_lines = []
     for line in lines:
-        stripped = line.strip() # Убираем пробелы по краям
-        
-        # Если строка - это заголовок (#) или список (*), убираем отступы слева
-        if stripped.startswith('#') or stripped.startswith('*'):
-            cleaned_lines.append(stripped)
-        else:
-            # Для обычного текста оставляем как есть (чтобы не слиплись абзацы)
-            cleaned_lines.append(line)
+        line = line.rstrip() # Убираем пробелы справа
+        if not line:
+            # Сохраняем пустые строки, но не больше двух подряд (чтобы не было дыр)
+            if cleaned_lines and cleaned_lines[-1] != "":
+                cleaned_lines.append("")
+            continue
             
-    # Собираем текст обратно
+        # Если это заголовок или буллит - убираем пробелы слева
+        if line.lstrip().startswith(('#', '*')):
+            cleaned_lines.append(line.lstrip())
+        else:
+            cleaned_lines.append(line) # Обычный текст оставляем как есть
+            
     text_content = "\n".join(cleaned_lines)
-    # ---------------------------------------------------
+    # -------------------------------
 
     pdf = PDFReport()
     pdf.add_page()
     
-    # Имена твоих файлов
+    # Имена файлов шрифтов
     font_reg = "DejaVuSans.ttf"
     font_bold = "DejaVuSans-Bold.ttf"
     font_italic = "DejaVuSans-Oblique.ttf"
     font_bold_italic = "DejaVuSans-BoldOblique.ttf"
 
-    # Проверяем наличие шрифтов
+    # Подключение шрифтов
     if os.path.exists(font_reg):
         pdf.add_font('DejaVu', '', font_reg)           
         
@@ -217,9 +236,14 @@ def create_pdf(text_content):
     else:
         pdf.set_font("Arial", size=11)
     
-    # Генерируем PDF с Markdown
-    pdf.multi_cell(0, 6, text_content, markdown=True)
-    
+    # Генерация
+    try:
+        pdf.multi_cell(0, 6, text_content, markdown=True)
+    except Exception as e:
+        # Если markdown всё равно сломается, пишем как текст (чтобы не было ошибки 500)
+        pdf.set_font("Arial", size=11) # Откат на безопасный шрифт
+        pdf.multi_cell(0, 6, "Formatting Error. Plain text version:\n\n" + text_content)
+
     return bytes(pdf.output())
 
 # --- EMAIL FUNCTION ---
@@ -306,9 +330,9 @@ TERMINOLOGY RULE:
 Use professional, native terminology. Never use direct translations like 'Аудитный'. Use 'Аудиторский отчет' or 'Отчет по аудиту' instead.
 
 Language:
-You must detect the language used in the ANSWERS.
+You must detect the language used in the ANSWERS. 
 Example: If questions are in English but answers are in Hindi, the target language is Hindi.
-The ENTIRE REPORT must be written in the detected language of the answers. Translate all headers, titles, bullet points, and analysis into that language. Do NOT mix languages.
+Default to English if the language is ambiguous. The ENTIRE report must be in ONE language. Do NOT switch languages midway. Translate all headers, titles, bullet points, and analysis into that language. Do NOT mix languages.
 
 The date of the report is {current_date}
 
