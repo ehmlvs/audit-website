@@ -202,7 +202,7 @@ def create_pdf(text_content):
     # Включаем markdown=True для форматирования (**жирный**, *курсив*)
     pdf.multi_cell(0, 6, text_content, markdown=True)
     
-    return pdf.output(dest='S').encode('latin-1')
+   return bytes(pdf.output())
 
 # --- EMAIL FUNCTION ---
 def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
@@ -320,12 +320,20 @@ Current Status: Facts from the input (volumes, formats, systems used).
 Pain Points / Bottlenecks: Identified inefficiencies (manual entry, delays, errors).
 Recommendation: Propose a specific solution classified as Process Optimization, RPA, or AI.
 
-4. Prioritization Matrix 
-Do NOT use a table. Instead, provide a structured list sorted by priority.
+4. Prioritization Matrix
+Do NOT use a table.
+You must GROUP and LIST the recommendations in the following strict order:
+
+1. First, list all **Quick Wins** (High Impact / Low Effort).
+2. Second, list all **Strategic Initiatives** (High Impact / High Effort).
+3. Third, list all **Low Priority** items.
+
+If a category has no items, omit it.
+
 Format each entry strictly as follows:
-[Priority Level: Quick Win / Strategic / Low Priority] — [Process Name]
-Solution Type: [Optimization / RPA / AI]
-Rationale: [Explanation based on volumes/time]
+* **[Priority Level] — [Process Name]**
+    * **Solution Type:** [Optimization / RPA / AI]
+    * **Rationale:** [Explanation based on volumes/time]
 
 5. Technology Landscape & Risks
 Current Stack: List systems mentioned in the input.
