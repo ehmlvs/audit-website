@@ -279,9 +279,10 @@ Strict Constraints & Guardrails:
 Fact-Based Analysis Only: Base your analysis STRICTLY on the provided answers. Do not invent, assume, or hallucinate details.
 Example: If the input mentions "Trello is used for tasks," do NOT assume "passwords are stored insecurely in Trello" unless the text explicitly says so.
 If data is missing for a specific section, state: "Insufficient data provided."
-Formal Tone: Use professional Business English.
+Formal Tone: Use professional Business language.
 Avoid informal language, slang, idioms (e.g., "heroism", "mess", "on the fly"), or emotive punctuation (!).
 Use professional terms: instead of "chaos," use "lack of standardization"; instead of "heroism," use "high dependency on key personnel."
+No tables allowed. You are strictly forbidden from using Markdown tables (do not use pipes | or rows). Whenever you would normally use a table you must use a structured bulleted list or nested list with bold headers instead.
 
 TERMINOLOGY RULE: 
 Use professional, native terminology. Never use direct translations like 'Аудитный'. Use 'Аудиторский отчет' or 'Отчет по аудиту' instead.
@@ -320,11 +321,11 @@ Pain Points / Bottlenecks: Identified inefficiencies (manual entry, delays, erro
 Recommendation: Propose a specific solution classified as Process Optimization, RPA, or AI.
 
 4. Prioritization Matrix 
-Create a table with the following columns:
-Priority: (Quick Win, Strategic, or Low Priority).
-Process: (Name of the process).
-Solution Type: (Optimization / RPA / AI).
-Rationale: Based on the volumes (time/quantity) provided in the input.
+Do NOT use a table. Instead, provide a structured list sorted by priority.
+Format each entry strictly as follows:
+[Priority Level: Quick Win / Strategic / Low Priority] — [Process Name]
+Solution Type: [Optimization / RPA / AI]
+Rationale: [Explanation based on volumes/time]
 
 5. Technology Landscape & Risks
 Current Stack: List systems mentioned in the input.
@@ -334,7 +335,7 @@ Risks: Identify risks (e.g., security, bus factor, data integrity) based only on
 Propose a 3-phase plan (e.g., Phase 1: Foundation, Phase 2: Pilot, Phase 3: Scaling).
 Constraint: Ensure every step in the roadmap corresponds to a finding in Section 3.
 
-Use Markdown formatting.
+Use Markdown formatting (Headers, Bold, Lists), but strictly NO TABLES.
 """
 
 # --- 6. Layout ---
