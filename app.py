@@ -173,36 +173,34 @@ def create_pdf(text_content):
     pdf = PDFReport()
     pdf.add_page()
     
-    # Имена твоих файловони лежат рядом с app.py
- 
+    # Имена твоих файлов
     font_reg = "DejaVuSans.ttf"
     font_bold = "DejaVuSans-Bold.ttf"
     font_italic = "DejaVuSans-Oblique.ttf"
     font_bold_italic = "DejaVuSans-BoldOblique.ttf"
 
-    # Проверяем наличие основного шрифта
+    # Проверяем наличие шрифтов
     if os.path.exists(font_reg):
-        pdf.add_font('DejaVu', '', font_reg)           # Обычный
+        pdf.add_font('DejaVu', '', font_reg)           
         
-        # Подгружаем остальные стили, если файлы на месте
         if os.path.exists(font_bold):
-            pdf.add_font('DejaVu', 'B', font_bold)     # Жирный
+            pdf.add_font('DejaVu', 'B', font_bold)     
             
         if os.path.exists(font_italic):
-            pdf.add_font('DejaVu', 'I', font_italic)   # Курсив
+            pdf.add_font('DejaVu', 'I', font_italic)   
             
         if os.path.exists(font_bold_italic):
-            pdf.add_font('DejaVu', 'BI', font_bold_italic) # Жирный курсив
+            pdf.add_font('DejaVu', 'BI', font_bold_italic)
 
         pdf.set_font('DejaVu', size=11)
     else:
-        # Если шрифты не найдены, используем стандартный (но без кириллицы)
         pdf.set_font("Arial", size=11)
     
-    # Включаем markdown=True для форматирования (**жирный**, *курсив*)
+    # Генерация текста с Markdown
     pdf.multi_cell(0, 6, text_content, markdown=True)
     
-   return bytes(pdf.output())
+    # Возврат байтов
+    return bytes(pdf.output())
 
 # --- EMAIL FUNCTION ---
 def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
