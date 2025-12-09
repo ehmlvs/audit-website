@@ -488,8 +488,8 @@ with c2:
                             st.error("File seems empty.")
                             break
                         
-                        # --- ВАЖНО: Модель gemini-flash-latest для стабильности ---
-                        model = genai.GenerativeModel("gemini-flash-latest", system_instruction=SYSTEM_PROMPT)
+                        # --- ВАЖНО: Модель gemini-flash-lite-latest для стабильности ---
+                        model = genai.GenerativeModel("gemini-flash-lite-latest", system_instruction=SYSTEM_PROMPT)
                         response = model.generate_content(f"Data:\n{raw_text}")
                         
                         st.session_state.report_text = response.text
