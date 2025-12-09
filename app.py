@@ -155,28 +155,30 @@ def extract_text_from_excel(file):
         return f"Error reading Excel: {e}"
 
 # PDF Generation
+
 class PDFReport(FPDF):
     def header(self):
-        # Logo only
         try:
-            self.image('logo.png', 10, 8, 15) 
+            # --- ИЗМЕНЕНИЕ: Логотип шириной 75мм (было 15) ---
+            self.image('logo.png', 10, 8, 75) 
         except:
             pass 
-        self.ln(20)
+        # --- ИЗМЕНЕНИЕ: Отступ вниз 35мм, чтобы текст не наехал на большое лого ---
+        self.ln(35) 
 
     def footer(self):
         self.set_y(-20)
         self.set_font('Arial', 'I', 9) 
         self.cell(0, 10, 'Questions? Contact elena.hmelovs@gmail.com', 0, 0, 'C')
 
+# Функция генерации контента (Ваш стабильный код)
 def create_pdf(text_content):
     pdf = PDFReport()
     pdf.add_page()
     
     # --- НАСТРОЙКА ШРИФТОВ ---
-    font_family = "Arial" # Запасной вариант (если шрифт не найдется)
+    font_family = "Arial" 
     
-    # Ищем шрифт для русского языка
     font_path = "DejaVuSans.ttf" 
     if os.path.exists(font_path):
         try:
@@ -197,13 +199,13 @@ def create_pdf(text_content):
             pdf.ln(3) 
             continue
         
-        # Безопасный блок: если строка ломает PDF, мы её пропускаем, но не роняем сайт
+        # Безопасный блок: если строка ломает PDF, мы её пропускаем
         try:
             # 1. ЗАГОЛОВКИ (Header 1: #)
             if line.startswith('# '):
                 clean_line = line.replace('# ', '').replace('**', '')
                 pdf.ln(5)
-                pdf.set_x(10) # Сброс отступа
+                pdf.set_x(10)
                 pdf.set_font(font_family, 'B', 16)
                 pdf.multi_cell(0, 8, clean_line)
                 pdf.set_font(font_family, '', 11) 
@@ -212,21 +214,21 @@ def create_pdf(text_content):
             elif line.startswith('## '):
                 clean_line = line.replace('## ', '').replace('**', '')
                 pdf.ln(3)
-                pdf.set_x(10) # Сброс отступа
+                pdf.set_x(10)
                 pdf.set_font(font_family, 'B', 13)
                 pdf.multi_cell(0, 6, clean_line)
                 pdf.set_font(font_family, '', 11)
                 
-            # 3. СПИСКИ (* или -) -> БЕЗОПАСНЫЙ ОТСТУП
+            # 3. СПИСКИ (* или -)
             elif line.startswith('* ') or line.startswith('- '):
                 clean_line = line[2:].replace('**', '') 
-                pdf.set_x(15) # Жесткий отступ 15мм (стандарт 10мм + 5мм)
+                pdf.set_x(15) 
                 pdf.multi_cell(0, 5, '- ' + clean_line)
                 
             # 4. ОБЫЧНЫЙ ТЕКСТ
             else:
                 clean_line = line.replace('**', '').replace('__', '').replace('### ', '')
-                pdf.set_x(10) # Стандартный отступ слева
+                pdf.set_x(10)
                 pdf.multi_cell(0, 5, clean_line)
                 
         except Exception as e:
