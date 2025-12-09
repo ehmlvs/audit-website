@@ -330,9 +330,7 @@ TERMINOLOGY RULE:
 Use professional, native terminology. Never use direct translations like 'Аудитный'. Use 'Аудиторский отчет' or 'Отчет по аудиту' instead.
 
 Language:
-You must detect the language used in the ANSWERS. 
-Example: If questions are in English but answers are in Hindi, the target language is Hindi.
-Default to English if the language is ambiguous. The ENTIRE report must be in ONE language. Do NOT switch languages midway. Translate all headers, titles, bullet points, and analysis into that language. Do NOT mix languages.
+You must use English. 
 
 The date of the report is {current_date}
 
