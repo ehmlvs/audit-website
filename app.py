@@ -170,81 +170,69 @@ class PDFReport(FPDF):
         self.cell(0, 10, 'Questions? Contact elena.hmelovs@gmail.com', 0, 0, 'C')
 
 def create_pdf(text_content):
-    import re  # Импортируем тут для работы "чистильщика"
-    
-    # --- БЛОК АГРЕССИВНОЙ ЧИСТКИ ---
-    
-    # 1. Убираем экранирование ($)
-    text_content = text_content.replace(r"\$", "$")
-    
-    # 2. Исправляем заголовки, если они слиплись (##Text -> ## Text)
-    # Ищет от 2 до 6 решеток, после которых НЕТ пробела, и добавляет его
-    text_content = re.sub(r'(#{2,6})([^\s#])', r'\1 \2', text_content)
-
-    # 3. Исправляем списки, если они слиплись (*Text -> * Text)
-    # Ищет звездочку в начале строки без пробела
-    text_content = re.sub(r'^(\*)([^\s])', r'\1 \2', text_content, flags=re.MULTILINE)
-
-    # 4. САМОЕ ВАЖНОЕ: Добавляем пустую строку перед каждым заголовком
-    # FPDF2 часто игнорирует заголовок, если перед ним нет пустой строки.
-    # Мы заменяем любой переход строки перед решетками на двойной переход.
-    text_content = re.sub(r'\n(#{2,6})', r'\n\n\1', text_content)
-
-    # 5. Убираем лишние пробелы в начале строк (кроме отступов списка)
-    lines = text_content.split('\n')
-    cleaned_lines = []
-    for line in lines:
-        line = line.rstrip() # Убираем пробелы справа
-        if not line:
-            # Сохраняем пустые строки, но не больше двух подряд (чтобы не было дыр)
-            if cleaned_lines and cleaned_lines[-1] != "":
-                cleaned_lines.append("")
-            continue
-            
-        # Если это заголовок или буллит - убираем пробелы слева
-        if line.lstrip().startswith(('#', '*')):
-            cleaned_lines.append(line.lstrip())
-        else:
-            cleaned_lines.append(line) # Обычный текст оставляем как есть
-            
-    text_content = "\n".join(cleaned_lines)
-    # -------------------------------
-
     pdf = PDFReport()
     pdf.add_page()
     
-    # Имена файлов шрифтов
-    font_reg = "DejaVuSans.ttf"
-    font_bold = "DejaVuSans-Bold.ttf"
-    font_italic = "DejaVuSans-Oblique.ttf"
-    font_bold_italic = "DejaVuSans-BoldOblique.ttf"
-
-    # Подключение шрифтов
-    if os.path.exists(font_reg):
-        pdf.add_font('DejaVu', '', font_reg)           
-        
-        if os.path.exists(font_bold):
-            pdf.add_font('DejaVu', 'B', font_bold)     
-            
-        if os.path.exists(font_italic):
-            pdf.add_font('DejaVu', 'I', font_italic)   
-            
-        if os.path.exists(font_bold_italic):
-            pdf.add_font('DejaVu', 'BI', font_bold_italic)
-
-        pdf.set_font('DejaVu', size=11)
-    else:
-        pdf.set_font("Arial", size=11)
+    # --- НАСТРОЙКА ШРИФТОВ ---
+    font_family = "Arial" # Запасной вариант
     
-    # Генерация
-    try:
-        pdf.multi_cell(0, 6, text_content, markdown=True)
-    except Exception as e:
-        # Если markdown всё равно сломается, пишем как текст (чтобы не было ошибки 500)
-        pdf.set_font("Arial", size=11) # Откат на безопасный шрифт
-        pdf.multi_cell(0, 6, "Formatting Error. Plain text version:\n\n" + text_content)
+    # Пытаемся найти шрифт для русского языка
+    font_path = "DejaVuSans.ttf" 
+    if os.path.exists(font_path):
+        try:
+            # Регистрируем шрифт (обычный и жирный)
+            pdf.add_font('CustomFont', '', font_path, uni=True)
+            pdf.add_font('CustomFont', 'B', font_path, uni=True)
+            font_family = 'CustomFont'
+        except:
+            pass
 
-    return bytes(pdf.output())
+    # Устанавливаем базовый шрифт
+    pdf.set_font(font_family, size=11)
+    
+    # --- УМНОЕ ФОРМАТИРОВАНИЕ ---
+    # Разбиваем весь текст на строки
+    lines = text_content.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Пропускаем пустые строки, но добавляем небольшой отступ
+        if not line:
+            pdf.ln(3) 
+            continue
+            
+        # 1. ЗАГОЛОВКИ (Header 1: #) -> Крупно и жирно
+        if line.startswith('# '):
+            clean_line = line.replace('# ', '').replace('**', '')
+            pdf.ln(5) # Отступ перед заголовком
+            pdf.set_font(font_family, 'B', 16)
+            pdf.multi_cell(0, 8, clean_line)
+            pdf.set_font(font_family, '', 11) # Возврат к обычному
+            
+        # 2. ПОДЗАГОЛОВКИ (Header 2: ##) -> Средне и жирно
+        elif line.startswith('## '):
+            clean_line = line.replace('## ', '').replace('**', '')
+            pdf.ln(3)
+            pdf.set_font(font_family, 'B', 13)
+            pdf.multi_cell(0, 6, clean_line)
+            pdf.set_font(font_family, '', 11)
+            
+        # 3. СПИСКИ (* или -) -> С отступом
+        elif line.startswith('* ') or line.startswith('- '):
+            clean_line = line[2:].replace('**', '') 
+            current_x = pdf.get_x()
+            pdf.set_x(current_x + 5) # Сдвигаем вправо
+            pdf.multi_cell(0, 5, '- ' + clean_line)
+            pdf.set_x(current_x) # Возвращаем обратно
+            
+        # 4. ОБЫЧНЫЙ ТЕКСТ
+        else:
+            # Просто убираем markdown жирность (**), чтобы текст был чистым
+            clean_line = line.replace('**', '').replace('__', '').replace('### ', '')
+            pdf.multi_cell(0, 5, clean_line)
+
+    return pdf.output(dest='S').encode('latin-1')
 
 # --- EMAIL FUNCTION ---
 def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
