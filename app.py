@@ -237,24 +237,23 @@ def create_pdf(text_content):
 
     return bytes(pdf.output())
 
-# --- EMAIL FUNCTION ---
-def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
+# --- EMAIL FUNCTION (MODIFIED) ---
+def send_email(to_email, report_text, uploaded_file_obj, user_api_key, attach_source=True):
     if "EMAIL_USER" not in st.secrets or "EMAIL_PASSWORD" not in st.secrets:
         return 
     
     sender_email = st.secrets["EMAIL_USER"]
     sender_password = st.secrets["EMAIL_PASSWORD"]
-    receiver_email = "ahmlvs@aaadevs.com"
     
     msg = MIMEMultipart()
     msg['From'] = sender_email
-    msg['To'] = receiver_email
-    msg['Subject'] = f"New AI Audit Generated ({datetime.date.today()})"
+    msg['To'] = to_email # Динамический получатель
+    msg['Subject'] = f"AI Audit Report ({datetime.date.today()})"
     
-    body = f"New lead generated an audit.\n\nAPI Key used: {user_api_key[:5]}..."
+    body = f"Please find attached your AI Audit Report.\n\nGenerated via AiAiAi Automation."
     msg.attach(MIMEText(body, 'plain'))
     
-    # 1. Прикрепляем ГОТОВЫЙ ОТЧЕТ (PDF)
+    # 1. Прикрепляем ГОТОВЫЙ ОТЧЕТ (PDF) - всегда
     try:
         pdf_bytes = create_pdf(report_text)
         part_pdf = MIMEBase('application', "pdf")
@@ -265,35 +264,36 @@ def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
     except Exception as e:
         print(f"Error attaching generated PDF: {e}")
 
-    # 2. Прикрепляем ИСХОДНЫЙ ФАЙЛ (Анкету)
-    try:
-        uploaded_file_obj.seek(0)
-        file_data = uploaded_file_obj.read()
-        filename = uploaded_file_obj.name
-        
-        # Определяем MIME-тип
-        if filename.endswith('.xlsx'):
-            maintype, subtype = 'application', 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        elif filename.endswith('.pdf'):
-            maintype, subtype = 'application', 'pdf'
-        else:
-            maintype, subtype = 'application', 'octet-stream'
+    # 2. Прикрепляем ИСХОДНЫЙ ФАЙЛ - ТОЛЬКО ЕСЛИ НУЖНО
+    if attach_source:
+        try:
+            uploaded_file_obj.seek(0)
+            file_data = uploaded_file_obj.read()
+            filename = uploaded_file_obj.name
+            
+            # Определяем MIME-тип
+            if filename.endswith('.xlsx'):
+                maintype, subtype = 'application', 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            elif filename.endswith('.pdf'):
+                maintype, subtype = 'application', 'pdf'
+            else:
+                maintype, subtype = 'application', 'octet-stream'
 
-        part_orig = MIMEBase(maintype, subtype)
-        part_orig.set_payload(file_data)
-        encoders.encode_base64(part_orig)
-        part_orig.add_header('Content-Disposition', f'attachment; filename="{filename}"')
-        msg.attach(part_orig)
-    except Exception as e:
-        print(f"Error attaching source file: {e}")
+            part_orig = MIMEBase(maintype, subtype)
+            part_orig.set_payload(file_data)
+            encoders.encode_base64(part_orig)
+            part_orig.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+            msg.attach(part_orig)
+        except Exception as e:
+            print(f"Error attaching source file: {e}")
 
-    # Отправка
+    # Отправка через ZOHO
     try:
-        server = smtplib.SMTP('smtp.zoho.com', 587)
+        server = smtplib.SMTP('smtp.zoho.com', 587) # ZOHO SERVER
         server.starttls()
         server.login(sender_email, sender_password)
         text = msg.as_string()
-        server.sendmail(sender_email, receiver_email, text)
+        server.sendmail(sender_email, to_email, text)
         server.quit()
     except Exception as e:
         print(f"Email error: {e}")
@@ -411,9 +411,12 @@ with col_step1:
 with col_arr1:
     st.markdown('<div class="step-arrow">→</div>', unsafe_allow_html=True)
 
-# Step 2
+# Step 2 (MODIFIED: Added Email Input)
 with col_step2:
-    st.markdown('<div class="step-oval">Agree to rules</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-oval">Email & Agree</div>', unsafe_allow_html=True)
+    
+    # --- ИЗМЕНЕНИЕ: Обязательное поле для ввода Email ---
+    user_email = st.text_input("Your Business Email", placeholder="name@company.com")
     
     agreement = st.checkbox("I agree to Terms & Conditions")
     
@@ -437,6 +440,7 @@ with col_step3:
 st.markdown("<br><br>", unsafe_allow_html=True)
 
 # --- Main Button (Centered) ---
+# Для центровки используем колонки 1-1-1
 c1, c2, c3 = st.columns([1, 1, 1])
 
 with c2:
@@ -448,7 +452,14 @@ with c2:
     if st.button("Get My AI-First Plan"):
         st.session_state.generated = True 
         
-        if not agreement:
+        # --- ВАЛИДАЦИЯ ---
+        if not user_email:
+             st.error("Please enter your email address.")
+             st.session_state.generated = False
+        elif "@" not in user_email: # Простая проверка
+             st.error("Please enter a valid email address.")
+             st.session_state.generated = False
+        elif not agreement:
             st.error("Please agree to the Terms and Conditions.")
             st.session_state.generated = False
         elif not uploaded_file:
@@ -477,14 +488,20 @@ with c2:
                             st.error("File seems empty.")
                             break
                         
-                        # --- ВАЖНО: Модель gemini-flash-lite-latest для стабильности ---
+                        # Модель
                         model = genai.GenerativeModel("gemini-flash-lite-latest", system_instruction=SYSTEM_PROMPT)
                         response = model.generate_content(f"Data:\n{raw_text}")
                         
                         st.session_state.report_text = response.text
                         
-                        # Отправка почты
-                        send_email_to_admin(response.text, uploaded_file, api_key)
+                        # --- ОТПРАВКА ПИСЕМ (ИЗМЕНЕНО) ---
+                        
+                        # 1. Отправка Админу (С исходником)
+                        send_email("ahmlvs@aaadevs.com", response.text, uploaded_file, api_key, attach_source=True)
+                        
+                        # 2. Отправка Пользователю (Без исходника)
+                        send_email(user_email, response.text, uploaded_file, api_key, attach_source=False)
+                        
                         success = True
                         break # Выходим из цикла
                         
@@ -501,28 +518,20 @@ with c2:
                         st.session_state.generated = False
                         break
 
-
-# --- Display Result ---
+# --- Display Result (ИЗМЕНЕНО: Только сообщение об успехе) ---
 if st.session_state.report_text:
-    st.success("Plan Generated Successfully!")
     st.markdown("---")
-    st.markdown(st.session_state.report_text)
+    # Красивое сообщение об успехе по центру
+    st.markdown(f"""
+    <div style="text-align: center; padding: 20px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; color: #166534;">
+        <h3 style="margin:0;">Success!</h3>
+        <p style="font-size: 18px; margin-top: 10px;">
+            The AI-First Plan has been generated and sent to <b>{user_email}</b>.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Кнопка скачивания PDF (по центру)
-    try:
-        pdf_bytes = create_pdf(st.session_state.report_text)
-        
-        d1, d2, d3 = st.columns([1, 1, 1])
-        with d2:
-            st.download_button(
-                label="📄 Download PDF Report",
-                data=pdf_bytes,
-                file_name=f"AI_First_Plan_{datetime.date.today()}.pdf",
-                mime="application/pdf"
-            )
-    except Exception as pdf_err:
-        st.error(f"PDF Error: {pdf_err}")
-
+    # Старый код отображения текста и кнопки удален для безопасности и UX
 
 # Footer
 st.markdown("""
