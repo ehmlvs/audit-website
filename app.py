@@ -250,7 +250,7 @@ def send_email(to_email, report_text, uploaded_file_obj, user_api_key, attach_so
     msg['To'] = to_email # Динамический получатель
     msg['Subject'] = f"Your AI Readiness Report is Ready ({datetime.date.today()})"
     
-    body = f"This marks the start of cutting costs and preparing your business for scaling.
+    body = f""This marks the start of cutting costs and preparing your business for scaling.
 
 Please note: As this is an automated report, it may contain minor discrepancies. 
 If you need clarification or want to discuss "what's next", simply reply to this email. We are here to help!
