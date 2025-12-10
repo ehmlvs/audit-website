@@ -289,7 +289,7 @@ def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
 
     # Отправка
     try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP('smtp.zoho.com', 587)
         server.starttls()
         server.login(sender_email, sender_password)
         text = msg.as_string()
