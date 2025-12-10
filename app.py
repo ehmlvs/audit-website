@@ -237,9 +237,10 @@ def create_pdf(text_content):
 
     return bytes(pdf.output())
 
-# --- EMAIL FUNCTION (MODIFIED) ---
+# --- EMAIL FUNCTION (FIXED) ---
 def send_email(to_email, report_text, uploaded_file_obj, user_api_key, attach_source=True):
     if "EMAIL_USER" not in st.secrets or "EMAIL_PASSWORD" not in st.secrets:
+        st.error("Email credentials missing in secrets.")
         return 
     
     sender_email = st.secrets["EMAIL_USER"]
@@ -247,37 +248,36 @@ def send_email(to_email, report_text, uploaded_file_obj, user_api_key, attach_so
     
     msg = MIMEMultipart()
     msg['From'] = sender_email
-    msg['To'] = to_email # Динамический получатель
-    msg['Subject'] = f"Your AI Readiness Report is Ready ({datetime.date.today()})"
+    msg['To'] = to_email 
+    msg['Subject'] = f"Your AI-First Plan is Ready ({datetime.date.today()})"
     
-    body = f"""This marks the start of cutting costs and preparing your business for scaling.
+    # Ваш текст письма
+    body = f"""This can be the start of automation that would lead to cost cutting and preparation for scaling. 
+    
+This is an automated report and may contain discrepancies. 
 
-Please note: As this is an automated report, it may contain minor discrepancies. 
-If you need clarification or want to discuss "what's next", simply reply to this email. We are here to help!
-
-Best regards,
-AiAiAi Automation Team"""
+If you need, you can contact us about the report if you need some clarifications or you want to know what to do next.
+"""
     msg.attach(MIMEText(body, 'plain'))
     
-    # 1. Прикрепляем ГОТОВЫЙ ОТЧЕТ (PDF) - всегда
+    # 1. Прикрепляем ГОТОВЫЙ ОТЧЕТ (PDF)
     try:
         pdf_bytes = create_pdf(report_text)
         part_pdf = MIMEBase('application', "pdf")
         part_pdf.set_payload(pdf_bytes)
         encoders.encode_base64(part_pdf)
-        part_pdf.add_header('Content-Disposition', f'attachment; filename="AI_Readiness_Report_{datetime.date.today()}.pdf"')
+        part_pdf.add_header('Content-Disposition', f'attachment; filename="Audit_Report_{datetime.date.today()}.pdf"')
         msg.attach(part_pdf)
     except Exception as e:
-        print(f"Error attaching generated PDF: {e}")
+        st.error(f"Error attaching generated PDF: {e}")
 
-    # 2. Прикрепляем ИСХОДНЫЙ ФАЙЛ - ТОЛЬКО ЕСЛИ НУЖНО
+    # 2. Прикрепляем ИСХОДНЫЙ ФАЙЛ (если нужно)
     if attach_source:
         try:
             uploaded_file_obj.seek(0)
             file_data = uploaded_file_obj.read()
             filename = uploaded_file_obj.name
             
-            # Определяем MIME-тип
             if filename.endswith('.xlsx'):
                 maintype, subtype = 'application', 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             elif filename.endswith('.pdf'):
@@ -291,20 +291,19 @@ AiAiAi Automation Team"""
             part_orig.add_header('Content-Disposition', f'attachment; filename="{filename}"')
             msg.attach(part_orig)
         except Exception as e:
-            print(f"Error attaching source file: {e}")
+            st.error(f"Error attaching source file: {e}")
 
     # Отправка через ZOHO
     try:
-        server = smtplib.SMTP('smtp.zoho.com', 587) # ZOHO SERVER
+        server = smtplib.SMTP('smtp.zoho.com', 587)
         server.starttls()
         server.login(sender_email, sender_password)
         text = msg.as_string()
         server.sendmail(sender_email, to_email, text)
         server.quit()
     except Exception as e:
-        print(f"Email error: {e}")
-
-current_date = datetime.date.today().strftime("%B %d, %Y")
+        # ВОТ ЭТА СТРОКА ПОКАЖЕТ ВАМ ОШИБКУ НА ЭКРАНЕ
+        st.error(f"Email error: {e}")
 
 # --- 5. FULL SYSTEM PROMPT ---
 SYSTEM_PROMPT = f"""
