@@ -408,15 +408,14 @@ col_step1, col_arr1, col_step2, col_arr2, col_step3 = st.columns([3, 0.5, 3, 0.5
 with col_step1:
     st.markdown('<div class="step-oval">Fill the form</div>', unsafe_allow_html=True)
     
-    # 1. Кнопка скачивания пустого шаблона
+    # 1. Кнопка шаблона
     try:
         with open("Template.xlsx", "rb") as file:
             st.download_button("▼ Download Template", file, "Template.xlsx", key="dl_tmpl")
     except:
         st.error("Template missing")
 
-    # 2. Примеры заполненных анкет (снизу)
-    st.markdown("<br><div style='text-align: center; font-size: 14px; color: #555;'>See filled examples:</div>", unsafe_allow_html=True)
+    # 2. Примеры (идут сразу следом)
     
     # Microbiz
     try:
@@ -438,7 +437,6 @@ with col_step1:
             st.download_button("📄 Example: Mediumbiz", data=f, file_name="Mediumbiz_form+report.pdf", key="ex_med")
     except:
         pass
-
 # Arrow 1
 with col_arr1:
     st.markdown('<div class="step-arrow">→</div>', unsafe_allow_html=True)
