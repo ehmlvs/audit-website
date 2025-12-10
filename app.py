@@ -400,7 +400,35 @@ st.markdown("""
     check <span class="hero-italic">AI readiness</span>
 </div>
 """, unsafe_allow_html=True)
+# --- Examples Section ---
+# Отступ, чтобы отделить от заголовка
+st.markdown("<div style='margin-bottom: 30px;'></div>", unsafe_allow_html=True)
 
+ex1, ex2, ex3 = st.columns(3)
+
+with ex1:
+    try:
+        with open("Microbiz_form+report.pdf", "rb") as f:
+            st.download_button("📄 Example: Microbiz", data=f, file_name="Microbiz_form+report.pdf")
+    except:
+        st.write("") # Если файла нет, кнопка просто не появится
+
+with ex2:
+    try:
+        with open("Smallbiz_form+report.pdf", "rb") as f:
+            st.download_button("📄 Example: Smallbiz", data=f, file_name="Smallbiz_form+report.pdf")
+    except:
+        st.write("")
+
+with ex3:
+    try:
+        with open("Mediumbiz_form+report.pdf", "rb") as f:
+            st.download_button("📄 Example: Mediumbiz", data=f, file_name="Mediumbiz_form+report.pdf")
+    except:
+        st.write("")
+
+# Дополнительный отступ перед шагами
+st.markdown("<br>", unsafe_allow_html=True)
 # Steps Grid
 col_step1, col_arr1, col_step2, col_arr2, col_step3 = st.columns([3, 0.5, 3, 0.5, 3])
 
