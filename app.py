@@ -140,8 +140,8 @@ def extract_text_from_pdf(file):
         for page in pdf_reader.pages:
             text += page.extract_text() or ""
         return text
-   except Exception as e:
-        st.error(f"Email error: {e}") # Теперь ошибка покажется на красном фоне
+    except Exception as e:
+        print(f"Email error: {e}")
 
 def extract_text_from_excel(file):
     try:
