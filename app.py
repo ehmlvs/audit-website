@@ -265,7 +265,7 @@ AiAiAi Automation Team""
         part_pdf = MIMEBase('application', "pdf")
         part_pdf.set_payload(pdf_bytes)
         encoders.encode_base64(part_pdf)
-        part_pdf.add_header('Content-Disposition', f'attachment; filename="Audit_Report_{datetime.date.today()}.pdf"')
+        part_pdf.add_header('Content-Disposition', f'attachment; filename="AI_Readiness_Report_{datetime.date.today()}.pdf"')
         msg.attach(part_pdf)
     except Exception as e:
         print(f"Error attaching generated PDF: {e}")
