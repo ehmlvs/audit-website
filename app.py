@@ -169,7 +169,7 @@ class PDFReport(FPDF):
     def footer(self):
         self.set_y(-20)
         self.set_font('Arial', 'I', 9) 
-        self.cell(0, 10, 'Questions? Contact elena.hmelovs@gmail.com', 0, 0, 'C')
+        self.cell(0, 10, 'Questions? Contact ahmlvs@aaadevs.com', 0, 0, 'C')
 
 # Функция генерации контента (Ваш стабильный код)
 def create_pdf(text_content):
@@ -528,6 +528,6 @@ if st.session_state.report_text:
 st.markdown("""
 <div class="whats-next">
     What's next? <br>
-    <a href="mailto:elena.hmelovs@gmail.com?subject=Discussion%20about%20AI%20Audit">elena.hmelovs@gmail.com</a>
+    <a href="mailto:ahmlvs@aaadevs.com?subject=Discussion%20about%20AI%20Audit">ahmlvs@aaadevs.com</a>
 </div>
 """, unsafe_allow_html=True)
