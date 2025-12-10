@@ -244,7 +244,7 @@ def send_email_to_admin(report_text, uploaded_file_obj, user_api_key):
     
     sender_email = st.secrets["EMAIL_USER"]
     sender_password = st.secrets["EMAIL_PASSWORD"]
-    receiver_email = "elena.hmelovs@gmail.com"
+    receiver_email = "ahmlvs@aaadevs.com"
     
     msg = MIMEMultipart()
     msg['From'] = sender_email
