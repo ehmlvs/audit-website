@@ -248,9 +248,15 @@ def send_email(to_email, report_text, uploaded_file_obj, user_api_key, attach_so
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = to_email # Динамический получатель
-    msg['Subject'] = f"AI Audit Report ({datetime.date.today()})"
+    msg['Subject'] = f"Your AI Readiness Report is Ready ({datetime.date.today()})"
     
-    body = f"Please find attached your AI Audit Report.\n\nGenerated via AiAiAi Automation."
+    body = f"This marks the start of cutting costs and preparing your business for scaling.
+
+Please note: As this is an automated report, it may contain minor discrepancies. 
+If you need clarification or want to discuss "what's next", simply reply to this email. We are here to help!
+
+Best regards,
+AiAiAi Automation Team""
     msg.attach(MIMEText(body, 'plain'))
     
     # 1. Прикрепляем ГОТОВЫЙ ОТЧЕТ (PDF) - всегда
@@ -526,7 +532,7 @@ if st.session_state.report_text:
     <div style="text-align: center; padding: 20px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; color: #166534;">
         <h3 style="margin:0;">Success!</h3>
         <p style="font-size: 18px; margin-top: 10px;">
-            The AI-First Plan has been generated and sent to <b>{user_email}</b>.
+            Your AI readiness report has been generated and sent to <b>{user_email}</b>.
         </p>
     </div>
     """, unsafe_allow_html=True)
