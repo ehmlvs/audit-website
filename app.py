@@ -159,11 +159,9 @@ def extract_text_from_excel(file):
 class PDFReport(FPDF):
     def header(self):
         try:
-            # --- ИЗМЕНЕНИЕ: Логотип шириной 75мм (было 15) ---
             self.image('logo.png', 10, 8, 75) 
         except:
             pass 
-        # --- ИЗМЕНЕНИЕ: Отступ вниз 35мм, чтобы текст не наехал на большое лого ---
         self.ln(35) 
 
     def footer(self):
@@ -171,12 +169,11 @@ class PDFReport(FPDF):
         self.set_font('Arial', 'I', 9) 
         self.cell(0, 10, 'Questions? Contact ahmlvs@aaadevs.com', 0, 0, 'C')
 
-# Функция генерации контента (Ваш стабильный код)
+# Функция генерации контента
 def create_pdf(text_content):
     pdf = PDFReport()
     pdf.add_page()
     
-    # --- НАСТРОЙКА ШРИФТОВ ---
     font_family = "Arial" 
     
     font_path = "DejaVuSans.ttf" 
@@ -190,7 +187,6 @@ def create_pdf(text_content):
 
     pdf.set_font(font_family, size=11)
     
-    # --- УМНОЕ ФОРМАТИРОВАНИЕ ---
     lines = text_content.split('\n')
     
     for line in lines:
@@ -199,9 +195,7 @@ def create_pdf(text_content):
             pdf.ln(3) 
             continue
         
-        # Безопасный блок: если строка ломает PDF, мы её пропускаем
         try:
-            # 1. ЗАГОЛОВКИ (Header 1: #)
             if line.startswith('# '):
                 clean_line = line.replace('# ', '').replace('**', '')
                 pdf.ln(5)
@@ -210,7 +204,6 @@ def create_pdf(text_content):
                 pdf.multi_cell(0, 8, clean_line)
                 pdf.set_font(font_family, '', 11) 
                 
-            # 2. ПОДЗАГОЛОВКИ (Header 2: ##)
             elif line.startswith('## '):
                 clean_line = line.replace('## ', '').replace('**', '')
                 pdf.ln(3)
@@ -219,13 +212,11 @@ def create_pdf(text_content):
                 pdf.multi_cell(0, 6, clean_line)
                 pdf.set_font(font_family, '', 11)
                 
-            # 3. СПИСКИ (* или -)
             elif line.startswith('* ') or line.startswith('- '):
                 clean_line = line[2:].replace('**', '') 
                 pdf.set_x(15) 
                 pdf.multi_cell(0, 5, '- ' + clean_line)
                 
-            # 4. ОБЫЧНЫЙ ТЕКСТ
             else:
                 clean_line = line.replace('**', '').replace('__', '').replace('### ', '')
                 pdf.set_x(10)
@@ -306,6 +297,9 @@ If you need, you can contact us about the report if you need some clarifications
         st.error(f"Email error: {e}")
 
 # --- 5. FULL SYSTEM PROMPT ---
+# >>> ДОБАВЛЕНО: Объявляем дату перед использованием в промпте
+current_date = datetime.date.today().strftime("%B %d, %Y")
+
 SYSTEM_PROMPT = f"""
 You are a Senior Business Process Analyst and Intelligent Automation Expert. Your task is to analyze a completed questionnaire provided by a client and generate a formal Report focused on automation potential.
 
