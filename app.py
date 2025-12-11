@@ -240,14 +240,16 @@ def send_email(to_email, report_text, uploaded_file_obj, user_api_key, attach_so
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = to_email 
-    msg['Subject'] = f"Your AI-First Plan is Ready ({datetime.date.today()})"
+    msg['Subject'] = f"Your AI Readiness Report is Ready ({datetime.date.today()})"
     
     # Ваш текст письма
-    body = f"""This can be the start of automation that would lead to cost cutting and preparation for scaling. 
+    body = f"""This marks your clear path to cost cutting and scalability. 
     
-This is an automated report and may contain discrepancies. 
+Because this report is fresh from our automated system, think of it as a 'fast-track' view that might have minor variances.
 
-If you need, you can contact us about the report if you need some clarifications or you want to know what to do next.
+Need some clarity or ready to take the next step? Simply reply to this email—we are standing by to help.
+
+You can also explore the platform directly at aiaiaiautomation.streamlit.app. 
 """
     msg.attach(MIMEText(body, 'plain'))
     
@@ -257,7 +259,7 @@ If you need, you can contact us about the report if you need some clarifications
         part_pdf = MIMEBase('application', "pdf")
         part_pdf.set_payload(pdf_bytes)
         encoders.encode_base64(part_pdf)
-        part_pdf.add_header('Content-Disposition', f'attachment; filename="Audit_Report_{datetime.date.today()}.pdf"')
+        part_pdf.add_header('Content-Disposition', f'attachment; filename="AI_Readiness_Report_{datetime.date.today()}.pdf"')
         msg.attach(part_pdf)
     except Exception as e:
         st.error(f"Error attaching generated PDF: {e}")
